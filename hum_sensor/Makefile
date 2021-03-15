@@ -1,18 +1,14 @@
 # tools
 AVR_PREFIX = avr-
-
 CC = $(AVR_PREFIX)gcc
 OBJCOPY = $(AVR_PREFIX)objcopy
 OBJDUMP = $(AVR_PREFIX)objdump
-AR = $(AVR_PREFIX)ar
-NM = $(AVR_PREFIX)nm
 AS = $(AVR_PREFIX)as
 LD = $(AVR_PREFIX)ld
-SIZE = $(AVR_PREFIX)size
 
 # libraries and defines
 LIBS = 
-DEFS = -DNDEBUG -D__AVR_ATtiny85__ 
+DEFS = -D__AVR_ATtiny85__ 
 
 # Directories
 BUILD_DIR = build
@@ -27,9 +23,12 @@ MMCU = -m$(MCU)
 INCS := -Iinc
 
 # flags
-CFLAGS := $(INCS) $(MMCU) $(DEFS) -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -std=gnu99 -Wall 
+WARN_LEVEL = -Wall -Wextra -Wundef -fno-common -Werror
+CDIALECT = -std=c11
+EXTRA_FLAGS = -ffunction-sections -fdata-sections -fstack-usage
+CFLAGS := $(CDIALECT) $(INCS) $(MMCU) $(DEFS) $(WARN_LEVEL) $(EXTRA_FLAGS)
 ASFLAGS = -f coff
-LDFLAGS = -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group  -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage
+LDFLAGS = -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group  -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage 
 
 # objects
 SRC_C := $(wildcard $(SRC_DIR)/*.c)
@@ -39,13 +38,19 @@ OBJECTS := $(SRC_C:%.c=$(OBJ_DIR)/%.o)
 OBJECTS += $(SRC_A:%.s=$(OBJ_DIR)/%.o)
 
 #targets
-
+.PHONY: debug
 debug: CFLAGS += -O0 -g3
-debug: all
-release: CFLAGS += -O2
-release: all
+debug: build
+.PHONY: release
+release: CFLAGS += -Os
+release: build
 
-all: directories $(PRG) 
+.PHONY: all
+all: debug
+
+.PHONY: build
+build: directories $(PRG)
+
 $(PRG): $(BIN_DIR)/$(PRG).elf $(BIN_DIR)/lst $(BIN_DIR)/text 
 
 $(OBJ_DIR)/%.o: %.c
@@ -72,20 +77,25 @@ $(BIN_DIR)/bin: $(BIN_DIR)/$(PRG).bin
 $(BIN_DIR)/%.bin: $(BIN_DIR)/%.elf
 	$(OBJCOPY) -O binary $< $@
 
+.PHONY: directories
 directories:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(BIN_DIR)
 
+.PHONY: clean
 clean:
 	@rm -rf $(BUILD_DIR)/*
 	@rm -rf $(BIN_DIR)/*
 
+.PHONY: mrproper
 mrproper:
 	@rm -rf $(BUILD_DIR) 
 	@rm -rf $(BIN_DIR)
 
+.PHONY: program
 program:
 	@avrdude -c usbasp -p t85 -U flash:w:$(BIN_DIR)/$(PRG).hex
 
+.PHONY: fuse_program
 fuse_program:
 	@avrdude -c usbasp -p t85 -U lfuse:w:0xc6:m -U hfuse:w:0xdf:m -U efuse:w:0xfe:m  
