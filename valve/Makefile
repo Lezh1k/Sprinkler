@@ -9,7 +9,7 @@ LD = $(AVR_PREFIX)ld
 # libraries and defines
 LIBS := 
 DEFS := -D__AVR_ATtiny2313__ \
-    -DSECONDS_TO_00=$(shell ./seconds_to_00.sh)
+    -D__SECONDS_TO_00__=$(shell ./seconds_to_00.sh)
 # Directories
 BUILD_DIR = build
 OBJ_DIR=$(BUILD_DIR)/obj
@@ -28,7 +28,7 @@ CDIALECT = -std=c11
 EXTRA_FLAGS = -ffunction-sections -fdata-sections -fstack-usage
 CFLAGS := $(CDIALECT) $(INCS) $(MMCU) $(DEFS) $(WARN_LEVEL) $(EXTRA_FLAGS)
 ASFLAGS = -f coff
-LDFLAGS = -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group  -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage 
+LDFLAGS := -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group  -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage 
 
 # objects
 SRC_C := $(wildcard $(SRC_DIR)/*.c)

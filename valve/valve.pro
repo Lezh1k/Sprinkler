@@ -6,7 +6,8 @@ CONFIG -= qt
 INCLUDEPATH += /usr/avr/include
 INCLUDEPATH += inc
 
-DEFINES += __AVR_ATtiny2313__
+DEFINES += __AVR_ATtiny2313__ \
+    __SECONDS_TO_00__=$$system(./seconds_to_00.sh) \
 
 
 DISTFILES += \

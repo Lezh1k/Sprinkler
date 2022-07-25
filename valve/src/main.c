@@ -15,7 +15,7 @@
 #define LED_GRN_PORTN PD5
 #define VALVE_PORTN PD4
 
-#define period_before_start_sec (5)
+#define period_before_start_sec (__SECONDS_TO_00__)
 #define period_valve_opened_sec (10)
 #define period_valve_closed_sec (20)
 
