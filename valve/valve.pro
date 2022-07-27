@@ -14,6 +14,8 @@ DISTFILES += \
     Makefile
 
 
-SOURCES += src/main.c
+SOURCES += src/main.c \
+    src/valve.c
 HEADERS += \
+    inc/valve.h
 
