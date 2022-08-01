@@ -7,7 +7,8 @@
 #include <stdbool.h>
 #include "valve.h"
 
-#define LED_GRN_DDR DDD5
+#define LED_GRN_DDR DDRD
+#define LED_GRN_DDR_N DDD5
 #define LED_GRN_PORT PORTD
 #define LED_GRN_PORTN PD5
 
@@ -15,16 +16,20 @@ static volatile uint8_t SOFT_INTERRUPTS_REG = 0;
 enum soft_interrupts_flags {
   SIVF_1SEC_PASSED = 1 << 1,
 };
-
-static void led_grn_turn_on(bool on);
-static inline void timer1_compa_int_enable() { TIMSK |= (1 << OCIE1A); }
 //////////////////////////////////////////////////////////////
 
-// because 1sec = 7812.5 cicles on this F_CPU
-// F_CPU = 16 000 000 / 2
-// F_TIMER1_PRESC_256 = F_CPU / 256
+static inline void led_grn_init(void) {
+  LED_GRN_DDR |= (1 << LED_GRN_DDR_N);
+}
+static void led_grn_turn_on(bool on);
+//////////////////////////////////////////////////////////////
+
 static volatile bool ocr1a_compensation = true;
+#if (F_CPU == 1000000)
+static const uint16_t ocr1a_vals[2] = {3906, 3906};
+#elif (F_CPU == 2000000)
 static const uint16_t ocr1a_vals[2] = {7812, 7813};
+#endif
 
 ISR(TIMER1_COMPA_vect) {
   TCNT1 = 0;
@@ -35,21 +40,28 @@ ISR(TIMER1_COMPA_vect) {
 }
 //////////////////////////////////////////////////////////////
 
-int main(void) {
-  DDRD |= (1 << LED_GRN_DDR);
-  valve_init();
+static inline void timer1_compa_int_enable(void) {
+  TIMSK |= (1 << OCIE1A);
+}
+//////////////////////////////////////////////////////////////
+
+static void timer1_init(void) {
   TCCR1B = (1 << CS12); // 256 prescaler
   timer1_compa_int_enable();
-
   OCR1A = ocr1a_vals[(int)ocr1a_compensation];
   TCNT1 = 0;
+}
+//////////////////////////////////////////////////////////////
+
+int main(void) {
+  led_grn_init();
+  valve_init();
+  timer1_init();
   sei();
-
   set_sleep_mode(SLEEP_MODE_IDLE);
+  sleep_enable();
   while (true) {
-    sleep_enable();
     sleep_cpu();
-
     if (SOFT_INTERRUPTS_REG & SIVF_1SEC_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_1SEC_PASSED;
       valve_sec_passed();

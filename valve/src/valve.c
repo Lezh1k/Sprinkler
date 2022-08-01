@@ -1,14 +1,22 @@
 #include "valve.h"
 #include <avr/io.h>
 #include <stdbool.h>
+#include <limits.h>
 
-#define VALVE_DDR DDD4
-#define VALVE_PORT PORTD
-#define VALVE_PORTN PD4
+#define VALVE_DDR DDRB
+#define VALVE_DDR_N DDB0
+#define VALVE_PORT PORTB
+#define VALVE_PORTN PB0
 
+#ifdef __VALVE_DEBUG__
+#define period_before_start_sec ((uint16_t)5)
+#define period_valve_opened_sec ((uint16_t)5)
+#define period_valve_closed_sec ((uint16_t)10)
+#else
 #define period_before_start_sec (__SECONDS_TO_00__)
-#define period_valve_opened_sec (10)
-#define period_valve_closed_sec (20)
+#define period_valve_opened_sec ((uint16_t)(60 * 60 * 6))
+#define period_valve_closed_sec ((uint16_t)(60 * 60 * 18))
+#endif
 
 typedef enum dfa_state_num {
   VDS_WAIT_FOR_START = 0,
@@ -28,7 +36,7 @@ static uint16_t m_periods[3] = {
 //////////////////////////////////////////////////////////////
 
 void valve_init() {
-  DDRD |= (1 << VALVE_DDR);
+  VALVE_DDR |= (1 << VALVE_DDR_N);
   valve_close(true);
 }
 //////////////////////////////////////////////////////////////

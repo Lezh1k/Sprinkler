@@ -10,6 +10,7 @@ LD = $(AVR_PREFIX)ld
 LIBS := 
 DEFS := -D__AVR_ATtiny2313__ \
     -D__SECONDS_TO_00__=$(shell ./seconds_to_00.sh)
+   
 # Directories
 BUILD_DIR = build
 OBJ_DIR=$(BUILD_DIR)/obj
@@ -40,6 +41,7 @@ OBJECTS += $(SRC_A:%.s=$(OBJ_DIR)/%.o)
 #targets
 .PHONY: debug
 debug: CFLAGS += -O0 -g3
+debug: DEFS += __VALVE_DEBUG__
 debug: build
 
 .PHONY: release
