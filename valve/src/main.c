@@ -3,13 +3,14 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
 #include "valve.h"
 
-#define LED_GRN_DDR DDRD
+#define LED_GRN_DDR   DDRD
 #define LED_GRN_DDR_N DDD5
-#define LED_GRN_PORT PORTD
+#define LED_GRN_PORT  PORTD
 #define LED_GRN_PORTN PD5
 
 static volatile uint8_t SOFT_INTERRUPTS_REG = 0;
@@ -18,42 +19,44 @@ enum soft_interrupts_flags {
 };
 //////////////////////////////////////////////////////////////
 
-static inline void led_grn_init(void) {
+static inline void led_grn_init(void)
+{
   LED_GRN_DDR |= (1 << LED_GRN_DDR_N);
 }
 static void led_grn_turn_on(bool on);
 //////////////////////////////////////////////////////////////
 
 static volatile bool ocr1a_compensation = true;
-#if (F_CPU == 1000000)
-static const uint16_t ocr1a_vals[2] = {3906, 3906};
-#elif (F_CPU == 2000000)
 static const uint16_t ocr1a_vals[2] = {7812, 7813};
-#endif
 
-ISR(TIMER1_COMPA_vect) {
+ISR(TIMER1_COMPA_vect)
+{
   TCNT1 = 0;
   OCR1A = ocr1a_vals[(int)ocr1a_compensation];
   ocr1a_compensation = !ocr1a_compensation;
-  led_grn_turn_on(!ocr1a_compensation); //just for indication that timer works
+  led_grn_turn_on(!ocr1a_compensation);  // just for indication that timer works
   SOFT_INTERRUPTS_REG |= SIVF_1SEC_PASSED;
 }
 //////////////////////////////////////////////////////////////
 
-static inline void timer1_compa_int_enable(void) {
+static void timer1_compa_int_enable(void)
+{
   TIMSK |= (1 << OCIE1A);
 }
 //////////////////////////////////////////////////////////////
 
-static void timer1_init(void) {
-  TCCR1B = (1 << CS12); // 256 prescaler
+static void timer1_init(void)
+{
+  TCCR1B = (1 << CS12);  // 256 prescaler
   timer1_compa_int_enable();
   OCR1A = ocr1a_vals[(int)ocr1a_compensation];
   TCNT1 = 0;
 }
 //////////////////////////////////////////////////////////////
 
-int main(void) {
+int main(void)
+{
+  bool lge = false;
   led_grn_init();
   valve_init();
   timer1_init();
@@ -65,13 +68,15 @@ int main(void) {
     if (SOFT_INTERRUPTS_REG & SIVF_1SEC_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_1SEC_PASSED;
       valve_sec_passed();
+      led_grn_turn_on(lge = !lge);
     }
   }
   return 0;
 }
 //////////////////////////////////////////////////////////////
 
-void led_grn_turn_on(bool on) {
+void led_grn_turn_on(bool on)
+{
   if (on)
     LED_GRN_PORT |= (1 << LED_GRN_PORTN);
   else

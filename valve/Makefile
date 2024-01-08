@@ -29,7 +29,8 @@ CDIALECT = -std=c11
 EXTRA_FLAGS = -ffunction-sections -fdata-sections -fstack-usage
 CFLAGS := $(CDIALECT) $(INCS) $(MMCU) $(DEFS) $(WARN_LEVEL) $(EXTRA_FLAGS)
 ASFLAGS = -f coff
-LDFLAGS := -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group  -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage 
+LDFLAGS := -Wl,-Map,$(BIN_DIR)/$(PRG).map $(MMCU) -Wl,--start-group \
+					 -Wl,--end-group -Wl,--gc-sections -Wl,-print-memory-usage 
 
 # objects
 SRC_C := $(wildcard $(SRC_DIR)/*.c)
