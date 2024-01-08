@@ -1,8 +1,8 @@
 #ifndef NOKIA_5110_H
 #define NOKIA_5110_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 void nokia5110_init(void);
 void nokia5110_clear(void);
@@ -14,4 +14,4 @@ void nokia5110_set_contrast(uint8_t contrast);
 void nokia5110_set_light(bool on);
 void nokia5110_set_pixel(int16_t x, int16_t y);
 
-#endif // NOKIA_5110_H
+#endif  // NOKIA_5110_H
