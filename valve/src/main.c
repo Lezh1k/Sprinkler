@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "nokia_5110.h"
 #include "valve.h"
 
 #define LED_GRN_DDR   DDRD
@@ -57,6 +58,10 @@ static void timer1_init(void)
 int main(void)
 {
   bool lge = false;
+  nokia5110_init();
+  nokia5110_gotoXY(0, 0);
+  nokia5110_write_str_s("hello", 3);
+  
   led_grn_init();
   valve_init();
   timer1_init();

@@ -9,7 +9,7 @@ LD = $(AVR_PREFIX)ld
 # libraries and defines
 LIBS := 
 DEFS := -D__AVR_ATtiny2313__ \
-    -D__SECONDS_TO_00__=$(shell ./seconds_to_00.sh)
+    -D__SECONDS_TO_00__=$(shell ./resources/seconds_to_00.sh)
    
 # Directories
 BUILD_DIR = build

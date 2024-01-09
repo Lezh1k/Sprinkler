@@ -29,14 +29,11 @@ file(GLOB_RECURSE data resources/*)
 # use globbing to find files automatically.
 
 set(MCU attiny2313)
+set(AVRDUDE_MCU t2313)
 
 # Compiler flags
-set(CSTANDARD "-std=c11")
-set(CDEBUG    "-g3 -ggdb")
-set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes -Wl,--gc-sections -Wl,--relax")
-set(CTUNING   "-ffunction-sections -fdata-sections -fstack-usage")
-set(COPT      "-O0")
 set(CMCU      "-mmcu=${MCU}")
+set(CDEBUG    "-g0")
 
 execute_process(COMMAND "./resources/seconds_to_00.sh" 
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} 
@@ -44,21 +41,28 @@ execute_process(COMMAND "./resources/seconds_to_00.sh"
 )
 
 set(CDEFS     "-D__AVR_ATtiny2313__ -D__SECONDS_TO_00__=${SECS_TO_00}")
-message(${CDEFS})
+set(COPT      "-Os")
+set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes")
+set(CSTANDARD "-std=c11")
+set(LDFLAGS   "-Wl,--gc-sections -Wl,-print-memory-usage")
+set(CTUNING   "-ffunction-sections -fdata-sections -fstack-usage")
 
-set(CFLAGS   "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CWARN} ${CSTANDARD} ${CTUNING}")
-set(ASMFLAGS "ASFLAGS = -f coff")
+set(CFLAGS    "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CWARN} ${CSTANDARD} ${LDFLAGS} ${CTUNING}")
+set(ASFLAGS   "-f coff")
 
 set(CMAKE_C_FLAGS     "${CFLAGS}")
 set(CMAKE_ASM_FLAGS   "${ASMFLAGS}")
 
-add_executable(valve ${sources} ${data})
+add_executable(${PROJECT_NAME} ${sources} ${data})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}.elf")
 target_include_directories(valve PRIVATE inc)
 
 file(COPY ${data} DESTINATION resources)
+
 # Custom targets
-add_custom_target(strip ALL ${AVRSTRIP} "${PROJECT_NAME}.elf" DEPENDS ${PROJECT_NAME})
-add_custom_target(hex   ALL ${OBJCOPY} -R .eeprom -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.hex" DEPENDS strip)
-add_custom_target(eeprom    ${OBJCOPY} -j .eeprom --change-section-lma .eeprom=0 -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.eeprom" DEPENDS strip)
-add_custom_target(flash     ${AVRDUDE} -c usbasp -p ${MCU} -U flash:w:${PROJECT_NAME}.hex DEPENDS hex)
+add_custom_target(strip   ALL ${AVRSTRIP} "${PROJECT_NAME}.elf" DEPENDS ${PROJECT_NAME})
+add_custom_target(hex     ALL ${OBJCOPY} -R .eeprom -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.hex" DEPENDS strip)
+add_custom_target(eeprom      ${OBJCOPY} -j .eeprom --change-section-lma .eeprom=0 -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.eeprom" DEPENDS strip)
+
+add_custom_target(program      ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U flash:w:${PROJECT_NAME}.hex DEPENDS hex)
+add_custom_target(program_fuse ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U lfuse:w:0x6f:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m)
