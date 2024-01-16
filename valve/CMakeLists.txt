@@ -44,7 +44,7 @@ set(CDEFS     "-D__AVR_ATtiny2313__ -D__SECONDS_TO_00__=${SECS_TO_00}")
 set(COPT      "-Os")
 set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes")
 set(CSTANDARD "-std=c11")
-set(LDFLAGS   "-Wl,--gc-sections -Wl,-print-memory-usage")
+set(LDFLAGS   "-Wl,--gc-sections -Wl,--print-memory-usage")
 set(CTUNING   "-ffunction-sections -fdata-sections -fstack-usage")
 
 set(CFLAGS    "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CWARN} ${CSTANDARD} ${LDFLAGS} ${CTUNING}")
