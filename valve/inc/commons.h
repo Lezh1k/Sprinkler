@@ -3,10 +3,9 @@
 
 #include <stdint.h>
 
-/// str_i8 converts int8_t value into string
-/// val - value
-/// buff - destination buffer (at least (and most actually) 5 bytes)
-char *str_i8(int8_t val, char *buff);
+#define FILL_CHAR_EMPTY -1
+
 char *str_u8(uint8_t val, char *buff);
+char *str_u8_n(uint8_t val, char *buff, int8_t n, char fill_char);
 
 #endif

@@ -1,19 +1,18 @@
-#include <avr/builtins.h>
+#include "rt_clock.h"
+
 #include <stdint.h>
 
-void rtc_init(uint32_t secs)
+void rtc_inc(rtc_t *rtc)
 {
-  uint8_t h = secs / 3600;
-  secs -= h * 3600;
-  uint8_t m = secs / 60;
-  secs -= m * 60;
-  uint8_t s = secs;
-  (void)s;
-}
-//////////////////////////////////////////////////////////////
+  int8_t cr = ++rtc->second == 60;
+  rtc->minute += cr;
+  cr = rtc->minute == 60;
+  rtc->hour += cr;
 
-void rtc_second_passed(void)
-{
-  __asm__("nop");
+  if (rtc->second == 60)
+    rtc->second = 0;
+  if (rtc->minute == 60)
+    rtc->minute = 0;
+  if (rtc->hour == 24)
+    rtc->hour = 0;
 }
-//////////////////////////////////////////////////////////////

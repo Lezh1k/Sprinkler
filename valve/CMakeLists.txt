@@ -35,12 +35,17 @@ set(AVRDUDE_MCU t2313)
 set(CMCU      "-mmcu=${MCU}")
 set(CDEBUG    "-g0")
 
-execute_process(COMMAND "./resources/seconds_to_00.sh" 
+# for some reason just "date '+%-H;%-M;%-S'" did not work
+execute_process(COMMAND "./resources/current_time.sh" 
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} 
-  OUTPUT_VARIABLE SECS_TO_00
+  OUTPUT_VARIABLE CURRENT_TIME_LST
 )
 
-set(CDEFS     "-D__AVR_ATtiny2313__ -D__SECONDS_TO_00__=${SECS_TO_00}")
+list(GET CURRENT_TIME_LST 0 CT_HOUR)
+list(GET CURRENT_TIME_LST 1 CT_MINUTE)
+list(GET CURRENT_TIME_LST 2 CT_SECOND)
+
+set(CDEFS     "-D__AVR_ATtiny2313__ -D__CT_HOUR=${CT_HOUR} -D__CT_MINUTE=${CT_MINUTE} -D__CT_SECOND=${CT_SECOND}")
 set(COPT      "-Os")
 set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes")
 set(CSTANDARD "-std=c11")
@@ -62,6 +67,7 @@ file(COPY ${data} DESTINATION resources)
 # Custom targets
 add_custom_target(strip   ALL ${AVRSTRIP} "${PROJECT_NAME}.elf" DEPENDS ${PROJECT_NAME})
 add_custom_target(hex     ALL ${OBJCOPY} -R .eeprom -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.hex" DEPENDS strip)
+add_custom_target(lst     ALL ${OBJDUMP} -h -S "${PROJECT_NAME}.elf" > "${PROJECT_NAME}.lst" DEPENDS strip)
 add_custom_target(eeprom      ${OBJCOPY} -j .eeprom --change-section-lma .eeprom=0 -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.eeprom" DEPENDS strip)
 
 add_custom_target(program      ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U flash:w:${PROJECT_NAME}.hex DEPENDS hex)
