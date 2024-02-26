@@ -16,3 +16,10 @@ void rtc_inc(rtc_t *rtc)
   if (rtc->hour == 24)
     rtc->hour = 0;
 }
+//////////////////////////////////////////////////////////////
+
+bool rtc_eq(const rtc_t *l, const rtc_t *r)
+{
+  return l->hour == r->hour && l->minute == r->minute && l->second == r->second;
+}
+//////////////////////////////////////////////////////////////

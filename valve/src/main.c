@@ -54,13 +54,22 @@ static void btn_down_pressed(void);
 static void rtc_print(const rtc_t *r);
 //////////////////////////////////////////////////////////////
 
-// menu
+// menu.
+// (3 valves * 2 + current time) * 3
+#define MENU_MAX_SETTINGS_N 21
 typedef struct menu {
+  // data
   rtc_t current_time;
-  valve_t *valves;
   uint8_t valves_len;
+
+  // aux
+  volatile bool is_editing;
+  volatile uint8_t settings_idx;
+
+  valve_t *valves;
+  uint8_t *settings[MENU_MAX_SETTINGS_N];
 } menu_t;
-static menu_t m_menu;
+static menu_t m_menu = {0};
 
 static void display_current_menu(void);
 //////////////////////////////////////////////////////////////
@@ -158,20 +167,46 @@ void display_current_menu(void)
   nokia5110_write_str(hdr);
   for (int i = 0; i < m_menu.valves_len; ++i) {
     nokia5110_gotoXY(0, 2 + i);
-    rtc_print(valve_get_open_time(&m_menu.valves[i]));
+    rtc_print(valve_open_time(&m_menu.valves[i]));
     nokia5110_write_str(" ");
-    rtc_print(valve_get_close_time(&m_menu.valves[i]));
+    rtc_print(valve_close_time(&m_menu.valves[i]));
   }
 }
 //////////////////////////////////////////////////////////////
 
-void btn_enter_pressed(void) {}
+void btn_enter_pressed(void)
+{
+  m_menu.is_editing = !m_menu.is_editing;
+  led_grn_turn_on(m_menu.is_editing);
+}
 //////////////////////////////////////////////////////////////
 
-void btn_up_pressed(void) {}
+static const uint8_t time_limits[3] = {24, 60, 60};
+void btn_up_pressed(void)
+{
+  if (!m_menu.is_editing) {
+    m_menu.settings_idx = (m_menu.settings_idx + 1) % MENU_MAX_SETTINGS_N;
+    return;
+  }
+
+  uint8_t tl = time_limits[m_menu.settings_idx % 3];
+  uint8_t *ps = m_menu.settings[m_menu.settings_idx];
+  *ps = (*ps + 1) % tl;
+}
 //////////////////////////////////////////////////////////////
 
-void btn_down_pressed(void) {}
+void btn_down_pressed(void)
+{
+  if (!m_menu.is_editing) {
+    m_menu.settings_idx =
+        (m_menu.settings_idx + MENU_MAX_SETTINGS_N - 1) % MENU_MAX_SETTINGS_N;
+    return;
+  }
+
+  uint8_t tl = time_limits[m_menu.settings_idx % 3];
+  uint8_t *ps = m_menu.settings[m_menu.settings_idx];
+  *ps = (*ps + tl - 1) % tl;
+}
 //////////////////////////////////////////////////////////////
 
 int main(void)
@@ -181,6 +216,19 @@ int main(void)
   m_menu.current_time.hour = __CT_HOUR;
   m_menu.current_time.minute = __CT_MINUTE;
   m_menu.current_time.second = __CT_SECOND;
+  m_menu.is_editing = false;
+  m_menu.settings_idx = 0;
+
+  rtc_t *all_times[7] = {&m_menu.current_time};
+  for (uint8_t i = 0; i < m_menu.valves_len; ++i) {
+    all_times[i + 1] = valve_open_time(&m_menu.valves[i]);
+  }
+
+  for (uint8_t i = 0; i < 7; ++i) {
+    m_menu.settings[3 * i + 0] = &all_times[i]->hour;
+    m_menu.settings[3 * i + 1] = &all_times[i]->minute;
+    m_menu.settings[3 * i + 2] = &all_times[i]->second;
+  }
 
   nokia5110_init();
   led_grn_init();
@@ -195,8 +243,7 @@ int main(void)
     sleep_cpu();
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_TICK_PASSED;
-      led_grn_turn_on(lge = !lge);
-      if (lge) {
+      if ((lge = !lge)) {
         rtc_inc(&m_menu.current_time);
         display_current_menu();
       }

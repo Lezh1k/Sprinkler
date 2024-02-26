@@ -48,25 +48,13 @@ void valve_open(const struct valve *v)
 }
 //////////////////////////////////////////////////////////////
 
-void valve_set_open_time(valve_t *v, rtc_t rtc)
-{
-  v->open = rtc;
-}
-//////////////////////////////////////////////////////////////
-
-const rtc_t *valve_get_open_time(const valve_t *v)
+rtc_t *valve_open_time(const valve_t *v)
 {
   return &v->open;
 }
 //////////////////////////////////////////////////////////////
 
-void valve_set_close_time(valve_t *v, rtc_t rtc)
-{
-  v->close = rtc;
-}
-//////////////////////////////////////////////////////////////
-
-const rtc_t *valve_get_close_time(const valve_t *v)
+rtc_t *valve_close_time(const valve_t *v)
 {
   return &v->close;
 }
