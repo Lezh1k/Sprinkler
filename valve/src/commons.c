@@ -2,10 +2,15 @@
 
 #include <stdbool.h>
 
-char *str_u8_n(uint8_t val, char *buff, int8_t n, char fill_char)
+char *str_u8_n(uint8_t val, char *buff, uint8_t n, char fill_char)
 {
   buff += --n;
   *buff-- = 0;
+
+  if (val == 0) {
+    *buff-- = '0';
+    --n;
+  }
 
   while (val && n--) {
     *buff-- = '0' + (val % 10);

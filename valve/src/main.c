@@ -6,6 +6,7 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "commons.h"
@@ -57,21 +58,20 @@ static void rtc_print(const rtc_t *r);
 // menu.
 // (3 valves * 2 + current time) * 3
 #define MENU_MAX_SETTINGS_N 21
-typedef struct menu {
+typedef struct valves_state {
   // data
   rtc_t current_time;
-  uint8_t valves_len;
+  valve_t **valves;
 
   // aux
-  volatile bool is_editing;
-  volatile uint8_t settings_idx;
-
-  valve_t *valves;
-  uint8_t *settings[MENU_MAX_SETTINGS_N];
-} menu_t;
-static menu_t m_menu = {0};
+  uint8_t settings_idx;
+  bool is_editing;
+} valves_state_t;
+static valves_state_t m_valves_state = {0};
 
 static void display_current_menu(void);
+static uint8_t *ptr_setting(void);
+static void check_and_handle_valves_state(void);
 //////////////////////////////////////////////////////////////
 
 // timer 1
@@ -145,7 +145,7 @@ void btn_pressed(void)
 
 void rtc_print(const rtc_t *r)
 {
-  char buff[3] = {0};
+  static char buff[3] = {0};
   char *s = str_u8_n(r->hour, buff, 3, '0');
   nokia5110_write_str(s);
   nokia5110_write_char(':');
@@ -159,81 +159,106 @@ void rtc_print(const rtc_t *r)
 
 void display_current_menu(void)
 {
-  const char *hdr = "    OPEN    CLOSE";
+  static const char *hdr = "    OPEN    CLOSE";
   nokia5110_gotoXY(0, 0);
   nokia5110_write_str("     ");
-  rtc_print(&m_menu.current_time);
+  rtc_print(&m_valves_state.current_time);
   nokia5110_gotoXY(0, 1);
   nokia5110_write_str(hdr);
-  for (int i = 0; i < m_menu.valves_len; ++i) {
+  uint8_t i = 0;
+  for (valve_t **v = m_valves_state.valves; *v; ++v, ++i) {
+    valve_t *pv = *v;
     nokia5110_gotoXY(0, 2 + i);
-    rtc_print(valve_open_time(&m_menu.valves[i]));
+    rtc_print(&pv->open);
     nokia5110_write_str(" ");
-    rtc_print(valve_close_time(&m_menu.valves[i]));
+    rtc_print(&pv->close);
   }
+}
+//////////////////////////////////////////////////////////////
+
+void check_and_handle_valves_state(void) {
+  
 }
 //////////////////////////////////////////////////////////////
 
 void btn_enter_pressed(void)
 {
-  m_menu.is_editing = !m_menu.is_editing;
-  led_grn_turn_on(m_menu.is_editing);
+  m_valves_state.is_editing = !m_valves_state.is_editing;
+  led_grn_turn_on(m_valves_state.is_editing);
 }
 //////////////////////////////////////////////////////////////
 
 static const uint8_t time_limits[3] = {24, 60, 60};
+uint8_t *ptr_setting(void)
+{
+  uint8_t rtc_idx = m_valves_state.settings_idx / 3;
+  uint8_t setting_idx = m_valves_state.settings_idx % 3;
+
+  rtc_t *rtc = &m_valves_state.current_time;
+  if (rtc_idx > 0) {
+    uint8_t val_idx = (rtc_idx - 1) / 2;  // 1,2 - 0; 3,4 - 1; 5,6 - 2
+    rtc = &m_valves_state.valves[val_idx]->close;
+    if (rtc_idx & 0x01) {
+      rtc = &m_valves_state.valves[val_idx]->open;
+    }
+  }
+
+  switch (setting_idx) {
+    case 0:
+      return &rtc->hour;
+    case 1:
+      return &rtc->minute;
+    case 2:
+      return &rtc->second;
+  }
+  // we will never be here
+  return NULL;
+}
+//////////////////////////////////////////////////////////////
+
 void btn_up_pressed(void)
 {
-  if (!m_menu.is_editing) {
-    m_menu.settings_idx = (m_menu.settings_idx + 1) % MENU_MAX_SETTINGS_N;
+  if (!m_valves_state.is_editing) {
+    m_valves_state.settings_idx =
+        (m_valves_state.settings_idx + 1) % MENU_MAX_SETTINGS_N;
     return;
   }
 
-  uint8_t tl = time_limits[m_menu.settings_idx % 3];
-  uint8_t *ps = m_menu.settings[m_menu.settings_idx];
+  uint8_t tl = time_limits[m_valves_state.settings_idx % 3];
+  uint8_t *ps = ptr_setting();
   *ps = (*ps + 1) % tl;
 }
 //////////////////////////////////////////////////////////////
 
 void btn_down_pressed(void)
 {
-  if (!m_menu.is_editing) {
-    m_menu.settings_idx =
-        (m_menu.settings_idx + MENU_MAX_SETTINGS_N - 1) % MENU_MAX_SETTINGS_N;
+  if (!m_valves_state.is_editing) {
+    m_valves_state.settings_idx =
+        (m_valves_state.settings_idx + MENU_MAX_SETTINGS_N - 1) %
+        MENU_MAX_SETTINGS_N;
     return;
   }
 
-  uint8_t tl = time_limits[m_menu.settings_idx % 3];
-  uint8_t *ps = m_menu.settings[m_menu.settings_idx];
+  uint8_t tl = time_limits[m_valves_state.settings_idx % 3];
+  uint8_t *ps = ptr_setting();
   *ps = (*ps + tl - 1) % tl;
 }
 //////////////////////////////////////////////////////////////
 
 int main(void)
 {
-  static bool lge = false;
-  valves_init(&m_menu.valves, &m_menu.valves_len);
-  m_menu.current_time.hour = __CT_HOUR;
-  m_menu.current_time.minute = __CT_MINUTE;
-  m_menu.current_time.second = __CT_SECOND;
-  m_menu.is_editing = false;
-  m_menu.settings_idx = 0;
+  bool second_passed = false;
+  valves_init(&m_valves_state.valves);
+  m_valves_state.current_time.hour = __CT_HOUR;
+  m_valves_state.current_time.minute = __CT_MINUTE;
+  m_valves_state.current_time.second = __CT_SECOND;
+  m_valves_state.is_editing = false;
+  m_valves_state.settings_idx = 0;
 
-  rtc_t *all_times[7] = {&m_menu.current_time};
-  for (uint8_t i = 0; i < m_menu.valves_len; ++i) {
-    all_times[i + 1] = valve_open_time(&m_menu.valves[i]);
-  }
-
-  for (uint8_t i = 0; i < 7; ++i) {
-    m_menu.settings[3 * i + 0] = &all_times[i]->hour;
-    m_menu.settings[3 * i + 1] = &all_times[i]->minute;
-    m_menu.settings[3 * i + 2] = &all_times[i]->second;
-  }
-
+  timer1_init();
   nokia5110_init();
   led_grn_init();
   btns_init();
-  timer1_init();
 
   sei();
   set_sleep_mode(SLEEP_MODE_IDLE);
@@ -243,8 +268,8 @@ int main(void)
     sleep_cpu();
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_TICK_PASSED;
-      if ((lge = !lge)) {
-        rtc_inc(&m_menu.current_time);
+      if ((second_passed = !second_passed)) {
+        rtc_inc(&m_valves_state.current_time);
         display_current_menu();
       }
     }
@@ -252,6 +277,7 @@ int main(void)
     if (SOFT_INTERRUPTS_REG & SIVF_BTN_PRESSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_BTN_PRESSED;
       btn_pressed();
+      display_current_menu();
     }
   }
   return 0;
