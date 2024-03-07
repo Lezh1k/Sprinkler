@@ -1,13 +1,16 @@
 #ifndef RT_CLOCK_H
 #define RT_CLOCK_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
-typedef struct rtc {
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
+typedef union rtc {
+  struct {
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+  } time;
+  uint8_t arr[3];
 } rtc_t;
 
 void rtc_inc(rtc_t *rtc);

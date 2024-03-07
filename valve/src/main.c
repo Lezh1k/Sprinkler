@@ -52,7 +52,7 @@ static void btn_up_pressed(void);
 static void btn_down_pressed(void);
 
 // display
-static void rtc_print(const rtc_t *r);
+static void rtc_print(const rtc_t *r, const uint8_t *ptr_skip);
 //////////////////////////////////////////////////////////////
 
 // menu.
@@ -69,7 +69,9 @@ typedef struct valves_state {
 } valves_state_t;
 static valves_state_t m_valves_state = {0};
 
-static void display_current_menu(void);
+static void display_current_time(uint8_t *ptr_skip);
+static void display_valves_settings(uint8_t *ptr_skip);
+static void display_current_menu(bool blink_setting);
 static uint8_t *ptr_setting(void);
 static void check_and_handle_valves_state(void);
 //////////////////////////////////////////////////////////////
@@ -143,41 +145,69 @@ void btn_pressed(void)
 }
 //////////////////////////////////////////////////////////////
 
-void rtc_print(const rtc_t *r)
+void rtc_print(const rtc_t *r, const uint8_t *ptr_skip)
 {
   static char buff[3] = {0};
-  char *s = str_u8_n(r->hour, buff, 3, '0');
-  nokia5110_write_str(s);
-  nokia5110_write_char(':');
-  s = str_u8_n(r->minute, buff, 3, '0');
-  nokia5110_write_str(s);
-  nokia5110_write_char(':');
-  s = str_u8_n(r->second, buff, 3, '0');
-  nokia5110_write_str(s);
-}
-//////////////////////////////////////////////////////////////
+  char *s;
 
-void display_current_menu(void)
-{
-  static const char *hdr = "    OPEN    CLOSE";
-  nokia5110_gotoXY(0, 0);
-  nokia5110_write_str("     ");
-  rtc_print(&m_valves_state.current_time);
-  nokia5110_gotoXY(0, 1);
-  nokia5110_write_str(hdr);
-  uint8_t i = 0;
-  for (valve_t **v = m_valves_state.valves; *v; ++v, ++i) {
-    valve_t *pv = *v;
-    nokia5110_gotoXY(0, 2 + i);
-    rtc_print(&pv->open);
-    nokia5110_write_str(" ");
-    rtc_print(&pv->close);
+  for (uint8_t i = 0; i < 3; ++i) {
+    s = &r->arr[i] == ptr_skip ? "  " : str_u8_n(r->arr[i], buff, 3, '0');
+    nokia5110_write_str(s);
+    if (i < 2) {
+      nokia5110_write_char(':');
+    }
   }
 }
 //////////////////////////////////////////////////////////////
 
-void check_and_handle_valves_state(void) {
-  
+void display_valves_settings(uint8_t *ptr_skip)
+{
+  static const char *hdr = "    OPEN    CLOSE";
+  nokia5110_gotoXY(0, 1);
+  nokia5110_write_str(hdr);
+  uint8_t i;
+  valve_t **v;
+  for (i = 0, v = m_valves_state.valves; *v; ++v, ++i) {
+    valve_t *pv = *v;
+    nokia5110_gotoXY(0, 2 + i);
+    rtc_print(&pv->open, ptr_skip);
+    nokia5110_write_str(" ");
+    rtc_print(&pv->close, ptr_skip);
+  }
+}
+//////////////////////////////////////////////////////////////
+
+void display_current_time(uint8_t *ptr_skip)
+{
+  nokia5110_gotoXY(0, 0);
+  nokia5110_write_str("     ");
+  rtc_print(&m_valves_state.current_time, ptr_skip);
+}
+//////////////////////////////////////////////////////////////
+
+void display_current_menu(bool blink_setting)
+{
+  uint8_t *ptr_skip = NULL;
+  if (blink_setting) {
+    ptr_skip = ptr_setting();
+  }
+  display_current_time(ptr_skip);
+  display_valves_settings(ptr_skip);
+}
+//////////////////////////////////////////////////////////////
+
+void check_and_handle_valves_state(void)
+{
+  for (valve_t **pv = m_valves_state.valves; *pv; ++pv) {
+    valve_t *v = *pv;
+    if (rtc_eq(&m_valves_state.current_time, &v->open)) {
+      valve_open(v);
+    }
+
+    if (rtc_eq(&m_valves_state.current_time, &v->close)) {
+      valve_close(v);
+    }
+  }
 }
 //////////////////////////////////////////////////////////////
 
@@ -202,17 +232,9 @@ uint8_t *ptr_setting(void)
       rtc = &m_valves_state.valves[val_idx]->open;
     }
   }
-
-  switch (setting_idx) {
-    case 0:
-      return &rtc->hour;
-    case 1:
-      return &rtc->minute;
-    case 2:
-      return &rtc->second;
-  }
-  // we will never be here
-  return NULL;
+  // dangerous
+  return (uint8_t *)rtc + setting_idx;
+  /* return &rtc->arr[setting_idx]; */
 }
 //////////////////////////////////////////////////////////////
 
@@ -249,9 +271,9 @@ int main(void)
 {
   bool second_passed = false;
   valves_init(&m_valves_state.valves);
-  m_valves_state.current_time.hour = __CT_HOUR;
-  m_valves_state.current_time.minute = __CT_MINUTE;
-  m_valves_state.current_time.second = __CT_SECOND;
+  m_valves_state.current_time.time.hour = __CT_HOUR;
+  m_valves_state.current_time.time.minute = __CT_MINUTE;
+  m_valves_state.current_time.time.second = __CT_SECOND;
   m_valves_state.is_editing = false;
   m_valves_state.settings_idx = 0;
 
@@ -264,20 +286,25 @@ int main(void)
   set_sleep_mode(SLEEP_MODE_IDLE);
   sleep_enable();
 
+  display_current_time(NULL);
+  display_valves_settings(NULL);
+
+  bool bs = false;  // blink setting
   while (2 + 2 != 5) {
     sleep_cpu();
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_TICK_PASSED;
       if ((second_passed = !second_passed)) {
         rtc_inc(&m_valves_state.current_time);
-        display_current_menu();
+        check_and_handle_valves_state();
       }
+      display_current_menu((bs = !bs) && m_valves_state.is_editing);
     }
 
     if (SOFT_INTERRUPTS_REG & SIVF_BTN_PRESSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_BTN_PRESSED;
       btn_pressed();
-      display_current_menu();
+      display_current_menu(bs = true);
     }
   }
   return 0;
