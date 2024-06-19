@@ -40,10 +40,10 @@
 #define CLK_HIGH()  (P_SPI |= (1 << P_CLK))
 #define CLK_LOW()   (P_SPI &= ~(1 << P_CLK))
 
-typedef enum {
+typedef enum DISPLAY_MODE {
   DM_COMMAND = 0,
   DM_DATA = 1,
-} D_MODE;  // DISPLAY MODE
+} D_MODE;
 
 #define DISPLAY_BANKS 6
 #define DISPLAY_WIDTH 84
@@ -109,9 +109,9 @@ void nokia5110_init(void)
 
   /* Configure LCD module */
   write_byte(DM_COMMAND, 0x21);  // Extended instruction set selected
-  write_byte(DM_COMMAND, 0xc0);  // set default contrast (see set_contrast func)
+  write_byte(DM_COMMAND, 0xc0);  // set default contrast (see set_contrast func) (or set voltage 5V)
   write_byte(DM_COMMAND, 0x07);  // Set temperature control (TC2)
-  write_byte(DM_COMMAND, 0x14);  // Set Bias for 1/48
+  write_byte(DM_COMMAND, 0x13);  // Set Bias for 1/48
   write_byte(DM_COMMAND, 0x20);  // Revert to standard instruction set
   write_byte(DM_COMMAND, 0x0c);  // Set display on in "normal" mode
   nokia5110_clear();

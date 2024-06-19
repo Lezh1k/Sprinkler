@@ -18,16 +18,25 @@
 #define LED_GRN_PORT  PORTD
 #define LED_GRN_PORTN PD6
 
-#define BTNS_DDR        DDRD
-#define BTNS_PIN        PIND
-#define BTNS_INT_DDR_N  DDD2
-#define BTNS_INT_PIN    PIND2
+#define BTNS_DDR  DDRD
+#define BTNS_PIN  PIND
+#define BTNS_PORT PORTD
+
+#define BTNS_INT_DDR_N DDD2
+#define BTNS_INT_PIN   PIND2
+#define BTNS_INT_PORT  PORTD2
+
 #define BTN_ENTER_DDR_N DDD3
 #define BTN_ENTER_PIN   PIND3
-#define BTN_UP_DDR_N    DDD4
-#define BTN_UP_PIN      PIND4
-#define BTN_DOWN_DDR_N  DDD5
-#define BTN_DOWN_PIN    PIND5
+#define BTN_ENTER_PORT  PORTD3
+
+#define BTN_UP_DDR_N DDD4
+#define BTN_UP_PIN   PIND4
+#define BTN_UP_PORT  PORTD4
+
+#define BTN_DOWN_DDR_N DDD5
+#define BTN_DOWN_PIN   PIND5
+#define BTN_DOWN_PORT  PORTD5
 
 #define TICK_DURATION_MS 500
 #define TICK_OCRA1_VAL   15625
@@ -124,6 +133,11 @@ void btns_init(void)
 {
   BTNS_DDR &= ~((1 << BTNS_INT_DDR_N) | (1 << BTN_ENTER_DDR_N) |
                 (1 << BTN_UP_DDR_N) | (1 << BTN_DOWN_DDR_N));
+
+  // ENABLE PULL UP RESISTORS
+  BTNS_PORT |= ((1 << BTNS_INT_PORT) | (1 << BTN_ENTER_PORT) |
+                (1 << BTN_UP_PORT) | (1 << BTN_DOWN_PORT));
+
   MCUCR = (1 << ISC01);  // falling edge on INT0 generates interrupt
   GIMSK = (1 << INT0);   // enable INT0 interrupt
 }
@@ -289,7 +303,8 @@ int main(void)
   display_current_time(NULL);
   display_valves_settings(NULL);
 
-  bool bs = false;  // blink setting
+  bool bs = false;
+
   while (2 + 2 != 5) {
     sleep_cpu();
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
