@@ -47,7 +47,7 @@ list(GET CURRENT_TIME_LST 2 CT_SECOND)
 
 set(CDEFS     "-D__AVR_ATtiny2313__ -D__CT_HOUR=${CT_HOUR} -D__CT_MINUTE=${CT_MINUTE} -D__CT_SECOND=${CT_SECOND}")
 set(COPT      "-Os")
-# set(COPT      "-O0")
+# set(COPT      "-O2")
 set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes")
 set(CSTANDARD "-std=c11")
 set(LDFLAGS   "-Wl,--gc-sections -Wl,--print-memory-usage")

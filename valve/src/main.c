@@ -1,7 +1,4 @@
 // see fuses
-#include "rt_clock.h"
-#define F_CPU (16000000 / 8)
-
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
@@ -11,12 +8,8 @@
 
 #include "commons.h"
 #include "nokia_5110.h"
+#include "rt_clock.h"
 #include "valve.h"
-
-#define LED_GRN_DDR   DDRD
-#define LED_GRN_DDR_N DDD6
-#define LED_GRN_PORT  PORTD
-#define LED_GRN_PORTN PD6
 
 #define BTNS_DDR  DDRD
 #define BTNS_PIN  PIND
@@ -38,8 +31,11 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
+#define F_CPU            16000000
 #define TICK_DURATION_MS 500
-#define TICK_OCRA1_VAL   15625
+/* #define TICK_OCRA1_VAL   15625 */
+/* #define F_CPU 4000000 */
+#define TICK_OCRA1_VAL (15625 / 4)
 
 static volatile uint8_t SOFT_INTERRUPTS_REG = 0;
 
@@ -48,10 +44,6 @@ enum soft_interrupts_flags {
   SIVF_BTN_PRESSED = 1 << 2,
 };
 //////////////////////////////////////////////////////////////
-
-// led green
-static void led_grn_init(void);
-static void led_grn_turn_on(bool on);
 
 // buttons
 static void btns_init(void);
@@ -71,7 +63,6 @@ typedef struct valves_state {
   // data
   rtc_t current_time;
   valve_t **valves;
-
   // aux
   uint8_t settings_idx;
   bool is_editing;
@@ -123,9 +114,9 @@ ISR(INT0_vect)
   // ovf = 0xff
   // t = ovf / (f_cpu / prescaler)
   // we want t ~ 0.1
-  TCCR0B |= (1 << CS02) | (1 << CS00);  // prescaler  = 1024
+  TCCR0B = (1 << CS02) | (1 << CS00);  // prescaler  = 1024
   // enable timer0 overflow interrupt
-  TIMSK |= (1 << TOIE0);
+  TIMSK = (1 << TOIE0);
 }
 //////////////////////////////////////////////////////////////
 
@@ -179,10 +170,8 @@ void display_valves_settings(uint8_t *ptr_skip)
   static const char *hdr = "    OPEN    CLOSE";
   nokia5110_gotoXY(0, 1);
   nokia5110_write_str(hdr);
-  uint8_t i;
-  valve_t **v;
-  for (i = 0, v = m_valves_state.valves; *v; ++v, ++i) {
-    valve_t *pv = *v;
+  for (int8_t i = 0; m_valves_state.valves[i]; ++i) {
+    valve_t *pv = m_valves_state.valves[i];
     nokia5110_gotoXY(0, 2 + i);
     rtc_print(&pv->open, ptr_skip);
     nokia5110_write_str(" ");
@@ -212,14 +201,15 @@ void display_current_menu(bool blink_setting)
 
 void check_and_handle_valves_state(void)
 {
-  for (valve_t **pv = m_valves_state.valves; *pv; ++pv) {
-    valve_t *v = *pv;
-    if (rtc_eq(&m_valves_state.current_time, &v->open)) {
-      valve_open(v);
+  for (int8_t i = 0; m_valves_state.valves[i]; ++i) {
+    valve_t *v = m_valves_state.valves[i];
+    rtc_t *ct = &m_valves_state.current_time;
+    if (rtc_eq(ct, &v->open)) {
+      valve_open(i);
     }
 
-    if (rtc_eq(&m_valves_state.current_time, &v->close)) {
-      valve_close(v);
+    if (rtc_eq(ct, &v->close)) {
+      valve_close(i);
     }
   }
 }
@@ -228,7 +218,6 @@ void check_and_handle_valves_state(void)
 void btn_enter_pressed(void)
 {
   m_valves_state.is_editing = !m_valves_state.is_editing;
-  led_grn_turn_on(m_valves_state.is_editing);
 }
 //////////////////////////////////////////////////////////////
 
@@ -238,17 +227,15 @@ uint8_t *ptr_setting(void)
   uint8_t rtc_idx = m_valves_state.settings_idx / 3;
   uint8_t setting_idx = m_valves_state.settings_idx % 3;
 
-  rtc_t *rtc = &m_valves_state.current_time;
+  rtc_t *ct = &m_valves_state.current_time;
   if (rtc_idx > 0) {
     uint8_t val_idx = (rtc_idx - 1) / 2;  // 1,2 - 0; 3,4 - 1; 5,6 - 2
-    rtc = &m_valves_state.valves[val_idx]->close;
+    ct = &m_valves_state.valves[val_idx]->close;
     if (rtc_idx & 0x01) {
-      rtc = &m_valves_state.valves[val_idx]->open;
+      ct = &m_valves_state.valves[val_idx]->open;
     }
   }
-  // dangerous
-  return (uint8_t *)rtc + setting_idx;
-  /* return &rtc->arr[setting_idx]; */
+  return &ct->arr[setting_idx];
 }
 //////////////////////////////////////////////////////////////
 
@@ -293,12 +280,9 @@ int main(void)
 
   timer1_init();
   nokia5110_init();
-  led_grn_init();
   btns_init();
 
   sei();
-  set_sleep_mode(SLEEP_MODE_IDLE);
-  sleep_enable();
 
   display_current_time(NULL);
   display_valves_settings(NULL);
@@ -306,7 +290,6 @@ int main(void)
   bool bs = false;
 
   while (2 + 2 != 5) {
-    sleep_cpu();
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_TICK_PASSED;
       if ((second_passed = !second_passed)) {
@@ -323,20 +306,5 @@ int main(void)
     }
   }
   return 0;
-}
-//////////////////////////////////////////////////////////////
-
-void led_grn_init(void)
-{
-  LED_GRN_DDR |= (1 << LED_GRN_DDR_N);
-}
-//////////////////////////////////////////////////////////////
-
-void led_grn_turn_on(bool on)
-{
-  if (on)
-    LED_GRN_PORT |= (1 << LED_GRN_PORTN);
-  else
-    LED_GRN_PORT &= ~(1 << LED_GRN_PORTN);
 }
 //////////////////////////////////////////////////////////////

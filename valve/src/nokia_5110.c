@@ -63,8 +63,8 @@ static inline void set_mode(D_MODE m)
 void gpio_config(void)
 {
   // everything to output
-  DDR_SPI = (1 << DDR_CLK) | (1 << DDR_MOSI) | (1 << DDR_DC) | (1 << DDR_CE) |
-            (1 << DDR_RST);
+  DDR_SPI |= (1 << DDR_CLK) | (1 << DDR_MOSI) | (1 << DDR_DC) | (1 << DDR_CE) |
+             (1 << DDR_RST);
 }
 //////////////////////////////////////////////////////////////
 
@@ -109,7 +109,8 @@ void nokia5110_init(void)
 
   /* Configure LCD module */
   write_byte(DM_COMMAND, 0x21);  // Extended instruction set selected
-  write_byte(DM_COMMAND, 0xc0);  // set default contrast (see set_contrast func) (or set voltage 5V)
+  write_byte(DM_COMMAND, 0xc0);  // set default contrast (see set_contrast func)
+                                 // (or set voltage 5V)
   write_byte(DM_COMMAND, 0x07);  // Set temperature control (TC2)
   write_byte(DM_COMMAND, 0x13);  // Set Bias for 1/48
   write_byte(DM_COMMAND, 0x20);  // Revert to standard instruction set
