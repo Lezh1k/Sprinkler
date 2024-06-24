@@ -31,11 +31,12 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
-#define F_CPU            16000000
 #define TICK_DURATION_MS 500
-/* #define TICK_OCRA1_VAL   15625 */
-/* #define F_CPU 4000000 */
-#define TICK_OCRA1_VAL (15625 / 4)
+
+#define F_CPU            16000000
+#define TICK_OCRA1_VAL   15625
+/* #define F_CPU          4000000 */
+/* #define TICK_OCRA1_VAL (15625 / 4) */
 
 static volatile uint8_t SOFT_INTERRUPTS_REG = 0;
 
@@ -102,7 +103,7 @@ ISR(TIMER0_OVF_vect)
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
     SOFT_INTERRUPTS_REG |= SIVF_BTN_PRESSED;
   }
-  GIMSK = (1 << INT0);  // enable INT0 interrupt
+  GIMSK |= (1 << INT0);  // enable INT0 interrupt
 }
 //////////////////////////////////////////////////////////////
 
@@ -114,9 +115,9 @@ ISR(INT0_vect)
   // ovf = 0xff
   // t = ovf / (f_cpu / prescaler)
   // we want t ~ 0.1
-  TCCR0B = (1 << CS02) | (1 << CS00);  // prescaler  = 1024
+  TCCR0B |= (1 << CS02) | (1 << CS00);  // prescaler  = 1024
   // enable timer0 overflow interrupt
-  TIMSK = (1 << TOIE0);
+  TIMSK |= (1 << TOIE0);
 }
 //////////////////////////////////////////////////////////////
 
@@ -288,7 +289,6 @@ int main(void)
   display_valves_settings(NULL);
 
   bool bs = false;
-
   while (2 + 2 != 5) {
     if (SOFT_INTERRUPTS_REG & SIVF_TICK_PASSED) {
       SOFT_INTERRUPTS_REG &= ~SIVF_TICK_PASSED;
