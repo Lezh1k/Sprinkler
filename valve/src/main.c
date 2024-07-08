@@ -31,12 +31,8 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
-#define TICK_DURATION_MS 500
-
-#define F_CPU            16000000
-#define TICK_OCRA1_VAL   15625
-/* #define F_CPU          4000000 */
-/* #define TICK_OCRA1_VAL (15625 / 4) */
+#define F_CPU 16000000
+/* #define F_CPU 4000000 */
 
 static volatile uint8_t SOFT_INTERRUPTS_REG = 0;
 
@@ -80,18 +76,20 @@ static void check_and_handle_valves_state(void);
 // timer 1
 ISR(TIMER1_COMPA_vect)
 {
-  TCNT1 = 0;
-  OCR1A = TICK_OCRA1_VAL;
   SOFT_INTERRUPTS_REG |= SIVF_TICK_PASSED;
 }
-//////////////////////////////////////////////////////////////
 
 static void timer1_init(void)
 {
-  TCCR1B = (1 << CS11) | (1 << CS10);  // 64 prescaler
-  TIMSK |= (1 << OCIE1A);              // timer1_compa_int_enable
-  OCR1A = TICK_OCRA1_VAL;
+  TCCR1B |= (1 << CS11) | (1 << CS10);  // 64 prescaler
+
+  // we have 8 prescaler fuse bits and 64 prescaler for timer
+  // so 1 second on timer is (F_CPU / 8 / 64)
+  // we want interrupt each 0.5 seconds
+  OCR1A = (F_CPU / 8 / 64 / 2);
+  TCCR1B |= (1 << WGM12);  // CTC without toggling output
   TCNT1 = 0;
+  TIMSK |= (1 << OCIE1A);  // timer1_compa_int_enable
 }
 //////////////////////////////////////////////////////////////
 
