@@ -133,7 +133,7 @@ void nokia5110_clear(void)
 
 void nokia5110_gotoXY(int8_t col, int8_t row)
 {
-  col *= DISPLAY_BANKS;
+  col = col * (FONT_CHAR_WIDTH + 1);
   write_byte(DM_COMMAND, 0x40 | (uint8_t)row);
   write_byte(DM_COMMAND, 0x80 | (uint8_t)col);
 }
@@ -142,7 +142,7 @@ void nokia5110_gotoXY(int8_t col, int8_t row)
 void nokia5110_write_char(char c)
 {
   c -= 0x20;
-  for (uint8_t line = 0; line < 4; ++line) {
+  for (uint8_t line = 0; line < FONT_CHAR_WIDTH; ++line) {
     write_byte(DM_DATA, pgm_read_byte(&font4_8[(uint8_t)c][line]));
   }
   write_byte(DM_DATA, 0x00);

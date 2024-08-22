@@ -3,3 +3,4 @@ bin/*
 .qtc_clangd/*
 valve.pro.user
 .cache/*
+*~

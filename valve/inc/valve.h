@@ -4,13 +4,19 @@
 #include "rt_clock.h"
 
 typedef struct valve {
-  rtc_t open;
-  rtc_t close;
+  union {
+    struct {
+      rtc_t open;
+      rtc_t close;
+    } strct;
+    rtc_t arr[2];
+  } schedule;
+  uint8_t port_n;
 } valve_t;
 //////////////////////////////////////////////////////////////
 
 void valves_init(valve_t ***lst_valves);
-void valve_close(uint8_t v_idx);
-void valve_open(uint8_t v_idx);
+void valve_close(const valve_t *v);
+void valve_open(const valve_t *v);
 
 #endif  // VALVE_DFA_H

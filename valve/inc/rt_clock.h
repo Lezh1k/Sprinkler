@@ -16,6 +16,8 @@ typedef union rtc {
 void rtc_inc(rtc_t *rtc);
 bool rtc_eq(const rtc_t *l, const rtc_t *r);
 
+void rtc_part_inc(rtc_t *rtc, int8_t idx);
+void rtc_part_dec(rtc_t *rtc, int8_t idx);
 //////////////////////////////////////////////////////////////
 
 #endif
