@@ -31,11 +31,11 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
-#define F_CPU 16000000
-/* #define F_CPU 4000000 */
+/* #define F_CPU 16000000 */
+#define F_CPU 4000000
 
 static volatile struct {
-  bool SIR_timer1_compa;
+  bool SIR_timer1_tick;
   bool SIR_btn_pressed;
 } SOFT_INTERRUPTS_REG;
 
@@ -79,23 +79,16 @@ static void check_and_handle_valves_state(void);
 // timer 1
 ISR(TIMER1_COMPA_vect)
 {
-  static volatile bool second_passed = false;
-  if ((second_passed = !second_passed)) {
-    rtc_inc(&m_valves_state.current_time);
-  }
-  SOFT_INTERRUPTS_REG.SIR_timer1_compa = true;
+  SOFT_INTERRUPTS_REG.SIR_timer1_tick = true;
 }
 
 static void timer1_init(void)
 {
-  TCCR1B |= (1 << CS11) | (1 << CS10);  // 64 prescaler
-  // we have 8 prescaler fuse bits and 64 prescaler for timer
-  // so 1 second on timer is (F_CPU / 8 / 64)
-  // we want interrupt each 0.5 seconds
-  OCR1A = (F_CPU / 8 / 64 / 2);
-  TCCR1B |= (1 << WGM12);  // CTC without toggling output
+  TCCR1B |= (1 << CS12)       // 256 prescaler
+            | (1 << WGM12);   // CTC without toggling output
+  OCR1A = (F_CPU / 256 / 2);  // 0.5s
   TCNT1 = 0;
-  SOFT_INTERRUPTS_REG.SIR_timer1_compa = false;
+  SOFT_INTERRUPTS_REG.SIR_timer1_tick = false;
   TIMSK |= (1 << OCIE1A);  // timer1_compa_int_enable
 }
 //////////////////////////////////////////////////////////////
@@ -123,14 +116,13 @@ void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n)
   sidx->rtc_idx -= cf;
   cf = sidx->rtc_idx == -1;
   sidx->valve_idx -= cf;
-
-  /* uint8_t rtc_n = 2 - (sidx->valve_idx == DUMMY_VALVE_IDX); */
   uint8_t rtc_n = sidx->valve_idx == DUMMY_VALVE_IDX ? 1 : 2;
+
   if (sidx->rtc_part_idx == -1)
     sidx->rtc_part_idx = 2;
   if (sidx->rtc_idx == -1)
-    sidx->rtc_idx = rtc_n;
-  if (sidx->valve_idx == DUMMY_VALVE_IDX - 1)
+    sidx->rtc_idx = rtc_n - 1;
+  if (sidx->valve_idx == (DUMMY_VALVE_IDX - 1))
     sidx->valve_idx = valves_n - 1;
 }
 //////////////////////////////////////////////////////////////
@@ -157,8 +149,10 @@ ISR(INT0_vect)
   // we want t ~ 0.1
 #if (F_CPU == 16000000)
   TCCR0B |= (1 << CS02) | (1 << CS00);  // prescaler  = 1024
-#elif (F_CPU == 40000)
+#elif (F_CPU == 4000000)
   TCCR0B |= (1 << CS02);  // prescaler  = 256
+#else
+#error Please specify timer0 prescaler for F_CPU
 #endif
   // enable timer0 overflow interrupt
   TIMSK |= (1 << TOIE0);
@@ -284,14 +278,14 @@ void btn_down_pressed(void)
 }
 //////////////////////////////////////////////////////////////
 
-static void redraw_current_setting(bool blink)
+static void render_current_setting(bool blink)
 {
   static char buff[3] = {0};
   settings_idx_t *si = &m_valves_state.settings_idx;
   uint8_t x_offset = CURRNET_TIME_X_OFFSET;
   uint8_t y = 0;
   if (si->valve_idx != DUMMY_VALVE_IDX) {
-    y = si->valve_idx + 2;  // starting from 2nd line
+    y = si->valve_idx + 2;
     x_offset = 0;
   }
   uint8_t x = si->rtc_idx * 9 + si->rtc_part_idx * 3 + x_offset;
@@ -322,18 +316,22 @@ int main(void)
   display_current_menu();
 
   bool blink = false;
+  bool second_passed = false;
   while (2 + 2 != 5) {
-    if (SOFT_INTERRUPTS_REG.SIR_timer1_compa) {
-      SOFT_INTERRUPTS_REG.SIR_timer1_compa = false;
+    if (SOFT_INTERRUPTS_REG.SIR_timer1_tick) {
+      SOFT_INTERRUPTS_REG.SIR_timer1_tick = false;
+      if ((second_passed = !second_passed)) {
+        rtc_inc(&m_valves_state.current_time);
+        display_current_time();
+      }
       check_and_handle_valves_state();
-      display_current_time();
-      redraw_current_setting((blink = !blink) && m_valves_state.is_editing);
+      render_current_setting((blink = !blink) && m_valves_state.is_editing);
     }
 
     if (SOFT_INTERRUPTS_REG.SIR_btn_pressed) {
       SOFT_INTERRUPTS_REG.SIR_btn_pressed = false;
       btn_pressed();
-      redraw_current_setting(blink = true);
+      render_current_setting(blink = true);
     }
   }
   return 0;

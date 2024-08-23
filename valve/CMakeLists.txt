@@ -72,4 +72,4 @@ add_custom_target(lst     ALL ${OBJDUMP} -h -S "${PROJECT_NAME}.elf" > "${PROJEC
 add_custom_target(eeprom      ${OBJCOPY} -j .eeprom --change-section-lma .eeprom=0 -O ihex "${PROJECT_NAME}.elf" "${PROJECT_NAME}.eeprom" DEPENDS strip)
 
 add_custom_target(program      ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U flash:w:${PROJECT_NAME}.hex DEPENDS hex)
-add_custom_target(program_fuse ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U lfuse:w:0x6f:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m)
+add_custom_target(program_fuse ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U lfuse:w:0xDE:m	-U hfuse:w:0xDF:m	-U efuse:w:0xFF:m	-U lock:w:0xFF:m)
