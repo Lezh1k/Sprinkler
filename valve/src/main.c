@@ -31,8 +31,8 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
-/* #define F_CPU 16000000 */
-#define F_CPU 4000000
+#define F_CPU 16000000
+/* #define F_CPU 4000000 */
 
 static volatile struct {
   bool SIR_timer1_tick;
@@ -84,8 +84,8 @@ ISR(TIMER1_COMPA_vect)
 
 static void timer1_init(void)
 {
-  TCCR1B |= (1 << CS12)       // 256 prescaler
-            | (1 << WGM12);   // CTC without toggling output
+  TCCR1B |= (1 << CS12) |     // 256 prescaler
+            (1 << WGM12);     // CTC without toggling output
   OCR1A = (F_CPU / 256 / 2);  // 0.5s
   TCNT1 = 0;
   SOFT_INTERRUPTS_REG.SIR_timer1_tick = false;
