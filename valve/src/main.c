@@ -11,33 +11,34 @@
 #include "rt_clock.h"
 #include "valve.h"
 
-#define BTNS_DDR  DDRD
-#define BTNS_PIN  PIND
+#define BTNS_DDR DDRD
+#define BTNS_PIN PIND
 #define BTNS_PORT PORTD
 
 #define BTNS_INT_DDR_N DDD2
-#define BTNS_INT_PIN   PIND2
-#define BTNS_INT_PORT  PORTD2
+#define BTNS_INT_PIN PIND2
+#define BTNS_INT_PORT PORTD2
 
 #define BTN_ENTER_DDR_N DDD3
-#define BTN_ENTER_PIN   PIND3
-#define BTN_ENTER_PORT  PORTD3
+#define BTN_ENTER_PIN PIND3
+#define BTN_ENTER_PORT PORTD3
 
 #define BTN_UP_DDR_N DDD4
-#define BTN_UP_PIN   PIND4
-#define BTN_UP_PORT  PORTD4
+#define BTN_UP_PIN PIND4
+#define BTN_UP_PORT PORTD4
 
 #define BTN_DOWN_DDR_N DDD5
-#define BTN_DOWN_PIN   PIND5
-#define BTN_DOWN_PORT  PORTD5
+#define BTN_DOWN_PIN PIND5
+#define BTN_DOWN_PORT PORTD5
 
-#define F_CPU 16000000
+/* #define F_CPU 16000000 */
 /* #define F_CPU 4000000 */
+#define F_CPU 24000000
 
 static volatile struct {
   bool SIR_timer1_tick;
   bool SIR_btn_pressed;
-} SOFT_INTERRUPTS_REG;
+} SOFT_INTERRUPTS_REG = {0};
 
 // buttons
 static void btns_init(void);
@@ -77,25 +78,19 @@ static void check_and_handle_valves_state(void);
 //////////////////////////////////////////////////////////////
 
 // timer 1
-ISR(TIMER1_COMPA_vect)
-{
-  SOFT_INTERRUPTS_REG.SIR_timer1_tick = true;
-}
+ISR(TIMER1_COMPA_vect) { SOFT_INTERRUPTS_REG.SIR_timer1_tick = true; }
 
-static void timer1_init(void)
-{
-  TCCR1B |= (1 << CS12) |     // 256 prescaler
-            (1 << WGM12);     // CTC without toggling output
-  OCR1A = (F_CPU / 256 / 2);  // 0.5s
+static void timer1_init(void) {
+  TCCR1B |= (1 << CS12) |      // 256 prescaler
+            (1 << WGM12);      // CTC without toggling output
+  OCR1A = ((F_CPU / 256) / 2); // 0.5s
   TCNT1 = 0;
-  SOFT_INTERRUPTS_REG.SIR_timer1_tick = false;
-  TIMSK |= (1 << OCIE1A);  // timer1_compa_int_enable
+  TIMSK |= (1 << OCIE1A); // timer1_compa_int_enable
 }
 //////////////////////////////////////////////////////////////
 
 // settings idx
-void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n)
-{
+void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
   uint8_t rtc_n = sidx->valve_idx == DUMMY_VALVE_IDX ? 1 : 2;
   uint8_t cf = ++sidx->rtc_part_idx == 3;
   sidx->rtc_idx += cf;
@@ -110,8 +105,7 @@ void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n)
     sidx->valve_idx = DUMMY_VALVE_IDX;
 }
 
-void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n)
-{
+void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n) {
   uint8_t cf = --sidx->rtc_part_idx == -1;
   sidx->rtc_idx -= cf;
   cf = sidx->rtc_idx == -1;
@@ -128,29 +122,27 @@ void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n)
 //////////////////////////////////////////////////////////////
 
 // btns
-ISR(TIMER0_OVF_vect)
-{
+ISR(TIMER0_OVF_vect) {
   // disable timer0_ovf interrupt
   TIMSK &= ~(1 << TOIE0);
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
     SOFT_INTERRUPTS_REG.SIR_btn_pressed = true;
   }
-  GIMSK |= (1 << INT0);  // enable INT0 interrupt
+  GIMSK |= (1 << INT0); // enable INT0 interrupt
 }
 //////////////////////////////////////////////////////////////
 
-ISR(INT0_vect)
-{
+ISR(INT0_vect) {
   // disable int0 interrupt
   GIMSK &= ~(1 << INT0);
   TCNT0 = 0;
   // ovf = 0xff
   // t = ovf / (f_cpu / prescaler)
   // we want t ~ 0.1
-#if (F_CPU == 16000000)
-  TCCR0B |= (1 << CS02) | (1 << CS00);  // prescaler  = 1024
+#if (F_CPU == 16000000 || F_CPU == 24000000)
+  TCCR0B |= (1 << CS02) | (1 << CS00); // prescaler  = 1024
 #elif (F_CPU == 4000000)
-  TCCR0B |= (1 << CS02);  // prescaler  = 256
+  TCCR0B |= (1 << CS02); // prescaler  = 256
 #else
 #error Please specify timer0 prescaler for F_CPU
 #endif
@@ -159,8 +151,7 @@ ISR(INT0_vect)
 }
 //////////////////////////////////////////////////////////////
 
-void btns_init(void)
-{
+void btns_init(void) {
   BTNS_DDR &= ~((1 << BTNS_INT_DDR_N) | (1 << BTN_ENTER_DDR_N) |
                 (1 << BTN_UP_DDR_N) | (1 << BTN_DOWN_DDR_N));
 
@@ -168,33 +159,34 @@ void btns_init(void)
   BTNS_PORT |= ((1 << BTNS_INT_PORT) | (1 << BTN_ENTER_PORT) |
                 (1 << BTN_UP_PORT) | (1 << BTN_DOWN_PORT));
 
-  MCUCR = (1 << ISC01);  // falling edge on INT0 generates interrupt
-  GIMSK = (1 << INT0);   // enable INT0 interrupt
+  MCUCR = (1 << ISC01); // falling edge on INT0 generates interrupt
+  GIMSK = (1 << INT0);  // enable INT0 interrupt
 }
 //////////////////////////////////////////////////////////////
 
-void btn_pressed(void)
-{
+void btn_pressed(void) {
   if ((BTNS_PIN & (1 << BTN_ENTER_PIN)) == 0) {
     btn_enter_pressed();
+    return;
   }
 
   if ((BTNS_PIN & (1 << BTN_UP_PIN)) == 0) {
     btn_up_pressed();
+    return;
   }
 
   if ((BTNS_PIN & (1 << BTN_DOWN_PIN)) == 0) {
     btn_down_pressed();
+    return;
   }
 }
 //////////////////////////////////////////////////////////////
 
-void rtc_print(const rtc_t *r)
-{
+void rtc_print(const rtc_t *r) {
   static char buff[3] = {0};
   char *s;
   for (uint8_t i = 0; i < 3; ++i) {
-    s = str_u8_n(r->arr[i], buff, 3, '0');
+    s = str_u8_n(r->arr[i], buff, 3);
     nokia5110_write_str(s);
     if (i < 2) {
       nokia5110_write_char(':');
@@ -203,16 +195,14 @@ void rtc_print(const rtc_t *r)
 }
 //////////////////////////////////////////////////////////////
 
-#define CURRNET_TIME_X_OFFSET 5
-void display_current_time(void)
-{
-  nokia5110_gotoXY(CURRNET_TIME_X_OFFSET, 0);
+#define CURRENT_TIME_X_OFFSET 5
+void display_current_time(void) {
+  nokia5110_gotoXY(CURRENT_TIME_X_OFFSET, 0);
   rtc_print(&m_valves_state.current_time);
 }
 //////////////////////////////////////////////////////////////
 
-void display_current_menu(void)
-{
+void display_current_menu(void) {
   static const char *hdr = "OPEN    CLOSE";
   display_current_time();
   nokia5110_gotoXY(4, 1);
@@ -227,8 +217,7 @@ void display_current_menu(void)
 }
 //////////////////////////////////////////////////////////////
 
-void check_and_handle_valves_state(void)
-{
+void check_and_handle_valves_state(void) {
   rtc_t *ct = &m_valves_state.current_time;
   for (valve_t **ppv = m_valves_state.valves; *ppv; ++ppv) {
     valve_t *v = *ppv;
@@ -243,8 +232,7 @@ void check_and_handle_valves_state(void)
 }
 //////////////////////////////////////////////////////////////
 
-static rtc_t *current_rtc_ptr(void)
-{
+static rtc_t *current_rtc_ptr(void) {
   settings_idx_t *si = &m_valves_state.settings_idx;
   if (si->valve_idx == DUMMY_VALVE_IDX)
     return &m_valves_state.current_time;
@@ -252,14 +240,12 @@ static rtc_t *current_rtc_ptr(void)
 }
 //////////////////////////////////////////////////////////////
 
-void btn_enter_pressed(void)
-{
+void btn_enter_pressed(void) {
   m_valves_state.is_editing = !m_valves_state.is_editing;
 }
 //////////////////////////////////////////////////////////////
 
-void btn_up_pressed(void)
-{
+void btn_up_pressed(void) {
   if (!m_valves_state.is_editing) {
     settings_idx_inc(&m_valves_state.settings_idx, 3);
     return;
@@ -268,8 +254,7 @@ void btn_up_pressed(void)
 }
 //////////////////////////////////////////////////////////////
 
-void btn_down_pressed(void)
-{
+void btn_down_pressed(void) {
   if (!m_valves_state.is_editing) {
     settings_idx_dec(&m_valves_state.settings_idx, 3);
     return;
@@ -278,11 +263,10 @@ void btn_down_pressed(void)
 }
 //////////////////////////////////////////////////////////////
 
-static void render_current_setting(bool blink)
-{
+static void render_current_setting(bool blink) {
   static char buff[3] = {0};
   settings_idx_t *si = &m_valves_state.settings_idx;
-  uint8_t x_offset = CURRNET_TIME_X_OFFSET;
+  uint8_t x_offset = CURRENT_TIME_X_OFFSET;
   uint8_t y = 0;
   if (si->valve_idx != DUMMY_VALVE_IDX) {
     y = si->valve_idx + 2;
@@ -292,13 +276,12 @@ static void render_current_setting(bool blink)
 
   rtc_t *ct = current_rtc_ptr();
   nokia5110_gotoXY(x, y);
-  char *s = blink ? "  " : str_u8_n(ct->arr[si->rtc_part_idx], buff, 3, '0');
+  char *s = blink ? "  " : str_u8_n(ct->arr[si->rtc_part_idx], buff, 3);
   nokia5110_write_str(s);
 }
 //////////////////////////////////////////////////////////////
 
-int main(void)
-{
+int main(void) {
   valves_init(&m_valves_state.valves);
   m_valves_state.current_time.time.hour = __CT_HOUR;
   m_valves_state.current_time.time.minute = __CT_MINUTE;
@@ -330,6 +313,7 @@ int main(void)
 
     if (SOFT_INTERRUPTS_REG.SIR_btn_pressed) {
       SOFT_INTERRUPTS_REG.SIR_btn_pressed = false;
+      render_current_setting(false);
       btn_pressed();
       render_current_setting(blink = true);
     }

@@ -31,10 +31,6 @@ file(GLOB_RECURSE data resources/*)
 set(MCU attiny2313)
 set(AVRDUDE_MCU t2313)
 
-# Compiler flags
-set(CMCU      "-mmcu=${MCU}")
-set(CDEBUG    "-g0")
-
 # for some reason just "date '+%-H;%-M;%-S'" did not work
 execute_process(COMMAND "./resources/current_time.sh" 
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} 
@@ -45,9 +41,11 @@ list(GET CURRENT_TIME_LST 0 CT_HOUR)
 list(GET CURRENT_TIME_LST 1 CT_MINUTE)
 list(GET CURRENT_TIME_LST 2 CT_SECOND)
 
+# Compiler flags
+set(CMCU      "-mmcu=${MCU}")
+set(CDEBUG    "-g0")
 set(CDEFS     "-D__AVR_ATtiny2313__ -D__CT_HOUR=${CT_HOUR} -D__CT_MINUTE=${CT_MINUTE} -D__CT_SECOND=${CT_SECOND}")
 set(COPT      "-Os")
-# set(COPT      "-O2")
 set(CWARN     "-Wall -Wextra -Wundef -Wstrict-prototypes")
 set(CSTANDARD "-std=c11")
 set(LDFLAGS   "-Wl,--gc-sections -Wl,--print-memory-usage")

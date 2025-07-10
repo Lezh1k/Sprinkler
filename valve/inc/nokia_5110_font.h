@@ -3,6 +3,7 @@
 
 #include <avr/pgmspace.h>
 #define FONT_CHAR_WIDTH 4
-extern const uint8_t font4_8[59][FONT_CHAR_WIDTH] PROGMEM;
+extern const char symbols[19];
+extern const uint8_t font4_8[19][FONT_CHAR_WIDTH] PROGMEM;
 
 #endif
