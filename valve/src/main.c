@@ -53,7 +53,6 @@ static void rtc_print(const rtc_t *r);
 
 // menu.
 #define DUMMY_VALVE_IDX -1
-#define CONTROLLED_VALVES_N 3
 typedef struct settings_idx {
   int8_t valve_idx;
   int8_t rtc_idx;
@@ -78,11 +77,12 @@ typedef enum blink_state {
 typedef struct valves_state {
   // data
   rtc_t current_time;
-  valve_t **valves;
+  valve_t *valves;
+  uint8_t valves_n;
   // aux
   settings_idx_t settings_idx;
-  controller_mode_t mode;
-  blink_state_t blink_state;
+  uint8_t mode;
+  uint8_t blink_state;
 } valves_state_t;
 static valves_state_t m_valves_state = {0};
 
@@ -94,6 +94,7 @@ static void controller_toggle_mode(void);
 static void controller_move_selection(bool forward);
 static void controller_change_current_setting(bool increment);
 static void controller_on_half_second_tick(void);
+static void controller_handle_adjust_button(bool increment);
 //////////////////////////////////////////////////////////////
 
 // timer 1
@@ -226,8 +227,8 @@ static void display_current_menu(void) {
   display_current_time();
   nokia5110_gotoXY(4, 1);
   nokia5110_write_str(hdr);
-  for (int8_t i = 0; m_valves_state.valves[i]; ++i) {
-    valve_t *pv = m_valves_state.valves[i];
+  for (uint8_t i = 0; i < m_valves_state.valves_n; ++i) {
+    valve_t *pv = &m_valves_state.valves[i];
     nokia5110_gotoXY(0, 2 + i);
     rtc_print(&pv->schedule.strct.open);
     nokia5110_write_char(' ');
@@ -238,8 +239,8 @@ static void display_current_menu(void) {
 
 static void check_and_handle_valves_state(void) {
   rtc_t *ct = &m_valves_state.current_time;
-  for (valve_t **ppv = m_valves_state.valves; *ppv; ++ppv) {
-    valve_t *v = *ppv;
+  for (uint8_t i = 0; i < m_valves_state.valves_n; ++i) {
+    valve_t *v = &m_valves_state.valves[i];
     if (rtc_eq(ct, &v->schedule.strct.open)) {
       valve_open(v);
     }
@@ -255,7 +256,7 @@ static rtc_t *current_rtc_ptr(void) {
   settings_idx_t *si = &m_valves_state.settings_idx;
   if (si->valve_idx == DUMMY_VALVE_IDX)
     return &m_valves_state.current_time;
-  return &m_valves_state.valves[si->valve_idx]->schedule.arr[si->rtc_idx];
+  return &m_valves_state.valves[si->valve_idx].schedule.arr[si->rtc_idx];
 }
 //////////////////////////////////////////////////////////////
 
@@ -265,22 +266,26 @@ static void btn_enter_pressed(void) {
 //////////////////////////////////////////////////////////////
 
 static void btn_up_pressed(void) {
-  if (m_valves_state.mode == CONTROLLER_MODE_NORMAL) {
-    controller_move_selection(true);
-    return;
-  }
-
-  controller_change_current_setting(true);
+  controller_handle_adjust_button(true);
 }
 //////////////////////////////////////////////////////////////
 
 static void btn_down_pressed(void) {
-  if (m_valves_state.mode == CONTROLLER_MODE_NORMAL) {
-    controller_move_selection(false);
-    return;
-  }
+  controller_handle_adjust_button(false);
+}
+//////////////////////////////////////////////////////////////
 
-  controller_change_current_setting(false);
+static void controller_handle_adjust_button(bool increment) {
+  switch (m_valves_state.mode) {
+  case CONTROLLER_MODE_NORMAL:
+    controller_move_selection(increment);
+    break;
+  case CONTROLLER_MODE_SETTINGS:
+    controller_change_current_setting(increment);
+    break;
+  default:
+    break;
+  }
 }
 //////////////////////////////////////////////////////////////
 
@@ -303,25 +308,29 @@ static void display_selected_setting(bool hidden) {
 //////////////////////////////////////////////////////////////
 
 static void controller_toggle_mode(void) {
-  if (m_valves_state.mode == CONTROLLER_MODE_NORMAL) {
+  switch (m_valves_state.mode) {
+  case CONTROLLER_MODE_NORMAL:
     m_valves_state.mode = CONTROLLER_MODE_SETTINGS;
     m_valves_state.blink_state = BLINK_CONTINUOUS_HIDDEN;
     display_selected_setting(true);
-    return;
+    break;
+  case CONTROLLER_MODE_SETTINGS:
+    m_valves_state.mode = CONTROLLER_MODE_NORMAL;
+    m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
+    display_selected_setting(false);
+    break;
+  default:
+    break;
   }
-
-  m_valves_state.mode = CONTROLLER_MODE_NORMAL;
-  m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
-  display_selected_setting(false);
 }
 //////////////////////////////////////////////////////////////
 
 static void controller_move_selection(bool forward) {
   display_selected_setting(false);
   if (forward) {
-    settings_idx_inc(&m_valves_state.settings_idx, CONTROLLED_VALVES_N);
+    settings_idx_inc(&m_valves_state.settings_idx, m_valves_state.valves_n);
   } else {
-    settings_idx_dec(&m_valves_state.settings_idx, CONTROLLED_VALVES_N);
+    settings_idx_dec(&m_valves_state.settings_idx, m_valves_state.valves_n);
   }
   m_valves_state.blink_state = BLINK_SINGLE_HIDDEN;
   display_selected_setting(true);
@@ -368,7 +377,7 @@ static void controller_on_half_second_tick(void) {
 //////////////////////////////////////////////////////////////
 
 int main(void) {
-  valves_init(&m_valves_state.valves);
+  valves_init(&m_valves_state.valves, &m_valves_state.valves_n);
   m_valves_state.current_time.time.hour = __CT_HOUR;
   m_valves_state.current_time.time.minute = __CT_MINUTE;
   m_valves_state.current_time.time.second = __CT_SECOND;

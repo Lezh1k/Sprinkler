@@ -7,48 +7,52 @@
 #define VALVES_DDR  DDRB
 #define VALVES_PORT PORTB
 
-static valve_t v0 = {
+// clang-format off
+static valve_t valves[] = {
+  {
     .schedule =
-        {
-                   .strct =
-                {
-                    .open = {.time = {.hour = 0, .minute = 0, .second = 0}},
-                    .close = {.time = {.hour = 2, .minute = 30, .second = 0}},
-                }, },
-    .port_n = PB0
-};
-
-static valve_t v1 = {
+    {
+      .strct =
+      {
+        .open = {.time = {.hour = 0, .minute = 0, .second = 0}},
+        .close = {.time = {.hour = 2, .minute = 30, .second = 0}},
+      },
+    },
+    .port_n = PB0,
+  },
+  {
     .schedule =
-        {
-                   .strct =
-                {
-                    .open = {.time = {.hour = 2, .minute = 30, .second = 0}},
-                    .close = {.time = {.hour = 5, .minute = 00, .second = 0}},
-                }, },
-    .port_n = PB1
-};
-
-static valve_t v2 = {
+    {
+      .strct =
+      {
+        .open = {.time = {.hour = 2, .minute = 30, .second = 0}},
+        .close = {.time = {.hour = 5, .minute = 0, .second = 0}},
+      },
+    },
+    .port_n = PB1,
+  },
+  {
     .schedule =
-        {
-                   .strct =
-                {
-                    .open = {.time = {.hour = 5, .minute = 00, .second = 0}},
-                    .close = {.time = {.hour = 7, .minute = 30, .second = 0}},
-                }, },
-    .port_n = PB2
+    {
+      .strct =
+      {
+        .open = {.time = {.hour = 5, .minute = 0, .second = 0}},
+        .close = {.time = {.hour = 7, .minute = 30, .second = 0}},
+      },
+    },
+    .port_n = PB2,
+  },
 };
-
-static valve_t *valves[] = {&v0, &v1, &v2, NULL};
+// clang-format on
 //////////////////////////////////////////////////////////////
 
-void valves_init(valve_t ***lst_valves)
+void valves_init(valve_t **lst_valves, uint8_t *valves_n)
 {
   VALVES_DDR |= (1 << DDB0) | (1 << DDB1) | (1 << DDB2);
-  for (valve_t **v = valves; *v; ++v)
-    valve_close(*v);
+  for (uint8_t i = 0; i < (sizeof(valves) / sizeof(valves[0])); ++i)
+    valve_close(&valves[i]);
   *lst_valves = valves;
+  *valves_n = sizeof(valves) / sizeof(valves[0]);
 }
 //////////////////////////////////////////////////////////////
 

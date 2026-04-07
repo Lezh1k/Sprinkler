@@ -1,6 +1,8 @@
 #ifndef VALVE_DFA_H
 #define VALVE_DFA_H
 
+#include <stdint.h>
+
 #include "rt_clock.h"
 
 typedef struct valve {
@@ -15,7 +17,7 @@ typedef struct valve {
 } valve_t;
 //////////////////////////////////////////////////////////////
 
-void valves_init(valve_t ***lst_valves);
+void valves_init(valve_t **lst_valves, uint8_t *valves_n);
 void valve_close(const valve_t *v);
 void valve_open(const valve_t *v);
 

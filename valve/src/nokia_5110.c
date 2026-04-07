@@ -15,30 +15,30 @@
 // PB4(_) : CE (chip enable)
 // PB3(_) : RST
 
-#define DDR_SPI DDRB
-#define DDR_CLK DDB7
+#define DDR_SPI  DDRB
+#define DDR_CLK  DDB7
 #define DDR_MOSI DDB6
-#define DDR_DC DDB5
-#define DDR_CE DDB4
-#define DDR_RST DDB3
+#define DDR_DC   DDB5
+#define DDR_CE   DDB4
+#define DDR_RST  DDB3
 
-#define P_SPI PORTB
-#define P_CLK PB7
+#define P_SPI  PORTB
+#define P_CLK  PB7
 #define P_MOSI PB6
-#define P_DC PB5
-#define P_CE PB4
-#define P_RST PB3
+#define P_DC   PB5
+#define P_CE   PB4
+#define P_RST  PB3
 
-#define RST_HIGH() (P_SPI |= (1 << P_RST))
-#define RST_LOW() (P_SPI &= ~(1 << P_RST))
-#define CE_HIGH() (P_SPI |= (1 << P_CE))
-#define CE_LOW() (P_SPI &= ~(1 << P_CE))
-#define DC_HIGH() (P_SPI |= (1 << P_DC))
-#define DC_LOW() (P_SPI &= ~(1 << P_DC))
+#define RST_HIGH()  (P_SPI |= (1 << P_RST))
+#define RST_LOW()   (P_SPI &= ~(1 << P_RST))
+#define CE_HIGH()   (P_SPI |= (1 << P_CE))
+#define CE_LOW()    (P_SPI &= ~(1 << P_CE))
+#define DC_HIGH()   (P_SPI |= (1 << P_DC))
+#define DC_LOW()    (P_SPI &= ~(1 << P_DC))
 #define MOSI_HIGH() (P_SPI |= (1 << P_MOSI))
-#define MOSI_LOW() (P_SPI &= ~(1 << P_MOSI))
-#define CLK_HIGH() (P_SPI |= (1 << P_CLK))
-#define CLK_LOW() (P_SPI &= ~(1 << P_CLK))
+#define MOSI_LOW()  (P_SPI &= ~(1 << P_MOSI))
+#define CLK_HIGH()  (P_SPI |= (1 << P_CLK))
+#define CLK_LOW()   (P_SPI &= ~(1 << P_CLK))
 
 typedef enum DISPLAY_MODE {
   DM_COMMAND = 0,
@@ -51,7 +51,8 @@ typedef enum DISPLAY_MODE {
 static void gpio_config(void);
 static void write_byte(uint8_t b);
 
-static void set_mode(D_MODE m) {
+static void set_mode(D_MODE m)
+{
   if (m == DM_COMMAND)
     DC_LOW();
   else
@@ -59,14 +60,16 @@ static void set_mode(D_MODE m) {
 }
 //////////////////////////////////////////////////////////////
 
-void gpio_config(void) {
+void gpio_config(void)
+{
   // everything to output
   DDR_SPI |= (1 << DDR_CLK) | (1 << DDR_MOSI) | (1 << DDR_DC) | (1 << DDR_CE) |
              (1 << DDR_RST);
 }
 //////////////////////////////////////////////////////////////
 
-void write_byte(uint8_t b) {
+void write_byte(uint8_t b)
+{
   CLK_LOW();
   CE_LOW();
 
@@ -96,7 +99,8 @@ void write_byte(uint8_t b) {
 }
 //////////////////////////////////////////////////////////////
 
-void nokia5110_init(void) {
+void nokia5110_init(void)
+{
   /* Configure gpio pins */
   gpio_config();
 
@@ -106,26 +110,27 @@ void nokia5110_init(void) {
   CE_HIGH();
 
   /* Reset the LCD to a known state */
-  RST_LOW(); // Set LCD reset = 0;
+  RST_LOW();  // Set LCD reset = 0;
   for (uint8_t i = 0; i != 0xff; i++)
-    ; // wait for a while
+    ;  // wait for a while
   RST_HIGH();
 
   /* Configure LCD module */
 
   set_mode(DM_COMMAND);
-  write_byte(0x21); // Extended instruction set selected
-  write_byte(0xc0); // set default contrast (see set_contrast func)
-                    // (or set voltage 5V)
-  write_byte(0x07); // Set temperature control (TC2)
-  write_byte(0x13); // Set Bias for 1/48
-  write_byte(0x20); // Revert to standard instruction set
-  write_byte(0x0c); // Set display on in "normal" mode
+  write_byte(0x21);  // Extended instruction set selected
+  write_byte(0xc0);  // set default contrast (see set_contrast func)
+                     // (or set voltage 5V)
+  write_byte(0x07);  // Set temperature control (TC2)
+  write_byte(0x13);  // Set Bias for 1/48
+  write_byte(0x20);  // Revert to standard instruction set
+  write_byte(0x0c);  // Set display on in "normal" mode
   nokia5110_clear();
 }
 //////////////////////////////////////////////////////////////
 
-void nokia5110_clear(void) {
+void nokia5110_clear(void)
+{
   nokia5110_gotoXY(0, 0);
   set_mode(DM_DATA);
   for (uint8_t y = 0; y < DISPLAY_BANKS; y++) {
@@ -137,7 +142,8 @@ void nokia5110_clear(void) {
 }
 //////////////////////////////////////////////////////////////
 
-void nokia5110_gotoXY(int8_t col, int8_t row) {
+void nokia5110_gotoXY(int8_t col, int8_t row)
+{
   col = col * (FONT_CHAR_WIDTH + 1);
   set_mode(DM_COMMAND);
   write_byte(0x40 | (uint8_t)row);
@@ -145,29 +151,30 @@ void nokia5110_gotoXY(int8_t col, int8_t row) {
 }
 //////////////////////////////////////////////////////////////
 
-void nokia5110_write_char(char c) {
+void nokia5110_write_char(char c)
+{
   uint8_t c_idx = 0;
   set_mode(DM_DATA);
 
   // smallest
-  for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
-  }
+  // for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
+  // }
 
   // fastest - binary search
-  // uint8_t l, r, m;
-  // l = 0;
-  // r = sizeof(symbols) - 1;
-  // while (l <= r) {
-  //   m = l + ((r - l) >> 1);
-  //   if (symbols[m] < c) {
-  //     l = m + 1;
-  //   } else if (symbols[m] > c) {
-  //     r = m - 1;
-  //   } else {
-  //     c_idx = m;
-  //     break;
-  //   }
-  // }
+  uint8_t l, r, m;
+  l = 0;
+  r = sizeof(symbols) - 1;
+  while (l <= r) {
+    m = l + ((r - l) >> 1);
+    if (symbols[m] < c) {
+      l = m + 1;
+    } else if (symbols[m] > c) {
+      r = m - 1;
+    } else {
+      c_idx = m;
+      break;
+    }
+  }
 
   for (uint8_t line = 0; line < FONT_CHAR_WIDTH; ++line) {
     write_byte(pgm_read_byte(&font4_8[c_idx][line]));
@@ -176,7 +183,8 @@ void nokia5110_write_char(char c) {
 }
 //////////////////////////////////////////////////////////////
 
-void nokia5110_write_str(const char *s) {
+void nokia5110_write_str(const char *s)
+{
   while (*s) {
     nokia5110_write_char(*s++);
   }
