@@ -150,24 +150,24 @@ void nokia5110_write_char(char c) {
   set_mode(DM_DATA);
 
   // smallest
-  // for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
-  // }
+  for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
+  }
 
   // fastest - binary search
-  uint8_t l, r, m;
-  l = 0;
-  r = sizeof(symbols) - 1;
-  while (l <= r) {
-    m = l + ((r - l) >> 1);
-    if (symbols[m] < c) {
-      l = m + 1;
-    } else if (symbols[m] > c) {
-      r = m - 1;
-    } else {
-      c_idx = m;
-      break;
-    }
-  }
+  // uint8_t l, r, m;
+  // l = 0;
+  // r = sizeof(symbols) - 1;
+  // while (l <= r) {
+  //   m = l + ((r - l) >> 1);
+  //   if (symbols[m] < c) {
+  //     l = m + 1;
+  //   } else if (symbols[m] > c) {
+  //     r = m - 1;
+  //   } else {
+  //     c_idx = m;
+  //     break;
+  //   }
+  // }
 
   for (uint8_t line = 0; line < FONT_CHAR_WIDTH; ++line) {
     write_byte(pgm_read_byte(&font4_8[c_idx][line]));
