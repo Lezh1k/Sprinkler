@@ -70,7 +70,7 @@ void write_byte(uint8_t b) {
   CLK_LOW();
   CE_LOW();
 
-  // HW SPI 
+  // HW SPI
   USIDR = b;
   USISR = (1 << USIOIF);
   uint8_t cfg = (1 << USIWM0) | (1 << USICS1) | (1 << USICLK) | (1 << USITC);
@@ -147,10 +147,28 @@ void nokia5110_gotoXY(int8_t col, int8_t row) {
 
 void nokia5110_write_char(char c) {
   uint8_t c_idx = 0;
-  for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
+  set_mode(DM_DATA);
+
+  // smallest
+  // for (; c_idx < sizeof(symbols) && symbols[c_idx] != c; ++c_idx) {
+  // }
+
+  // fastest - binary search
+  uint8_t l, r, m;
+  l = 0;
+  r = sizeof(symbols) - 1;
+  while (l <= r) {
+    m = l + ((r - l) >> 1);
+    if (symbols[m] < c) {
+      l = m + 1;
+    } else if (symbols[m] > c) {
+      r = m - 1;
+    } else {
+      c_idx = m;
+      break;
+    }
   }
 
-  set_mode(DM_DATA);
   for (uint8_t line = 0; line < FONT_CHAR_WIDTH; ++line) {
     write_byte(pgm_read_byte(&font4_8[c_idx][line]));
   }

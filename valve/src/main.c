@@ -31,8 +31,8 @@
 #define BTN_DOWN_PIN PIND5
 #define BTN_DOWN_PORT PORTD5
 
-/* #define F_CPU 16000000 */
-/* #define F_CPU 4000000 */
+// #define F_CPU 16000000
+// #define F_CPU 4000000
 #define F_CPU 24000000
 
 static volatile struct {
@@ -185,13 +185,13 @@ void btn_pressed(void) {
 void rtc_print(const rtc_t *r) {
   static char buff[3] = {0};
   char *s;
-  for (uint8_t i = 0; i < 3; ++i) {
+  for (uint8_t i = 0; i < 2; ++i) {
     s = str_u8_n(r->arr[i], buff, 3);
     nokia5110_write_str(s);
-    if (i < 2) {
-      nokia5110_write_char(':');
-    }
+    nokia5110_write_char(':');
   }
+  s = str_u8_n(r->arr[2], buff, 3);
+  nokia5110_write_str(s);
 }
 //////////////////////////////////////////////////////////////
 
@@ -211,7 +211,7 @@ void display_current_menu(void) {
     valve_t *pv = m_valves_state.valves[i];
     nokia5110_gotoXY(0, 2 + i);
     rtc_print(&pv->schedule.strct.open);
-    nokia5110_write_str(" ");
+    nokia5110_write_char(' ');
     rtc_print(&pv->schedule.strct.close);
   }
 }
