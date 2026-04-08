@@ -50,8 +50,9 @@ static valve_t valves[VALVES_N] = {
 void valves_init(valve_t **lst_valves, uint8_t *valves_n)
 {
   VALVES_DDR |= (1 << DDB0) | (1 << DDB1) | (1 << DDB2);
-  for (uint8_t i = 0; i < VALVES_N; ++i)
-    valve_close(&valves[i]);
+  // unnecessary valve_close because ports on power up are zeroed
+  // for (uint8_t i = 0; i < VALVES_N; ++i)
+  //   valve_close(&valves[i]);
   *lst_valves = valves;
   *valves_n = VALVES_N;
 }
