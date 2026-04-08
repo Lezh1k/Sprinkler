@@ -20,5 +20,6 @@ typedef struct valve {
 void valves_init(valve_t **lst_valves, uint8_t *valves_n);
 void valve_close(const valve_t *v);
 void valve_open(const valve_t *v);
+void valves_save_schedule(void);
 
 #endif  // VALVE_DFA_H

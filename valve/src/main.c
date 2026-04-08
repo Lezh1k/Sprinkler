@@ -10,25 +10,25 @@
 #include "rt_clock.h"
 #include "valve.h"
 
-#define BTNS_DDR DDRD
-#define BTNS_PIN PIND
+#define BTNS_DDR  DDRD
+#define BTNS_PIN  PIND
 #define BTNS_PORT PORTD
 
 #define BTNS_INT_DDR_N DDD2
-#define BTNS_INT_PIN PIND2
-#define BTNS_INT_PORT PORTD2
+#define BTNS_INT_PIN   PIND2
+#define BTNS_INT_PORT  PORTD2
 
 #define BTN_ENTER_DDR_N DDD3
-#define BTN_ENTER_PIN PIND3
-#define BTN_ENTER_PORT PORTD3
+#define BTN_ENTER_PIN   PIND3
+#define BTN_ENTER_PORT  PORTD3
 
 #define BTN_UP_DDR_N DDD4
-#define BTN_UP_PIN PIND4
-#define BTN_UP_PORT PORTD4
+#define BTN_UP_PIN   PIND4
+#define BTN_UP_PORT  PORTD4
 
 #define BTN_DOWN_DDR_N DDD5
-#define BTN_DOWN_PIN PIND5
-#define BTN_DOWN_PORT PORTD5
+#define BTN_DOWN_PIN   PIND5
+#define BTN_DOWN_PORT  PORTD5
 
 // #define F_CPU 16000000
 // #define F_CPU 8000000
@@ -78,6 +78,7 @@ typedef struct valves_state {
   rtc_t current_time;
   valve_t *valves;
   uint8_t valves_n;
+  bool schedule_dirty;
   // aux
   settings_idx_t settings_idx;
   uint8_t mode;
@@ -97,19 +98,24 @@ static void controller_handle_adjust_button(bool increment);
 //////////////////////////////////////////////////////////////
 
 // timer 1
-ISR(TIMER1_COMPA_vect) { SOFT_INTERRUPTS_REG.SIR_timer1_tick = 0x01; }
+ISR(TIMER1_COMPA_vect)
+{
+  SOFT_INTERRUPTS_REG.SIR_timer1_tick = 0x01;
+}
 
-static void timer1_init(void) {
-  TCCR1B |= (1 << CS12) |      // 256 prescaler
-            (1 << WGM12);      // CTC without toggling output
-  OCR1A = ((F_CPU / 256) / 2); // 0.5s
+static void timer1_init(void)
+{
+  TCCR1B |= (1 << CS12) |       // 256 prescaler
+            (1 << WGM12);       // CTC without toggling output
+  OCR1A = ((F_CPU / 256) / 2);  // 0.5s
   TCNT1 = 0;
-  TIMSK |= (1 << OCIE1A); // timer1_compa_int_enable
+  TIMSK |= (1 << OCIE1A);  // timer1_compa_int_enable
 }
 //////////////////////////////////////////////////////////////
 
 // settings idx
-void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
+void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n)
+{
   uint8_t rtc_n = sidx->valve_idx == DUMMY_VALVE_IDX ? 1 : 2;
   uint8_t cf = ++sidx->rtc_part_idx == 3;
   sidx->rtc_idx += cf;
@@ -124,7 +130,8 @@ void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
     sidx->valve_idx = DUMMY_VALVE_IDX;
 }
 
-void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n) {
+void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n)
+{
   uint8_t cf = --sidx->rtc_part_idx == -1;
   sidx->rtc_idx -= cf;
   cf = sidx->rtc_idx == -1;
@@ -141,18 +148,20 @@ void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n) {
 //////////////////////////////////////////////////////////////
 
 // btns
-ISR(TIMER0_OVF_vect) {
+ISR(TIMER0_OVF_vect)
+{
   // disable timer0_ovf interrupt
   TIMSK &= ~(1 << TOIE0);
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
     // we can detect pressed btn here, but it consumes more memory (~10bytes)
     SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x01;
   }
-  GIMSK |= (1 << INT0); // enable INT0 interrupt
+  GIMSK |= (1 << INT0);  // enable INT0 interrupt
 }
 //////////////////////////////////////////////////////////////
 
-ISR(INT0_vect) {
+ISR(INT0_vect)
+{
   // disable int0 interrupt
   GIMSK &= ~(1 << INT0);
   TCNT0 = 0;
@@ -160,9 +169,9 @@ ISR(INT0_vect) {
   // t = ovf / (f_cpu / prescaler)
   // we want t ~ 0.1
 #if (F_CPU == 16000000 || F_CPU == 24000000)
-  TCCR0B |= (1 << CS02) | (1 << CS00); // prescaler  = 1024
+  TCCR0B |= (1 << CS02) | (1 << CS00);  // prescaler  = 1024
 #elif (F_CPU == 4000000 || F_CPU == 8000000)
-  TCCR0B |= (1 << CS02); // prescaler  = 256
+  TCCR0B |= (1 << CS02);  // prescaler  = 256
 #else
 #error Please specify timer0 prescaler for F_CPU
 #endif
@@ -171,7 +180,8 @@ ISR(INT0_vect) {
 }
 //////////////////////////////////////////////////////////////
 
-static void btns_init(void) {
+static void btns_init(void)
+{
   BTNS_DDR &= ~((1 << BTNS_INT_DDR_N) | (1 << BTN_ENTER_DDR_N) |
                 (1 << BTN_UP_DDR_N) | (1 << BTN_DOWN_DDR_N));
 
@@ -179,12 +189,13 @@ static void btns_init(void) {
   BTNS_PORT |= ((1 << BTNS_INT_PORT) | (1 << BTN_ENTER_PORT) |
                 (1 << BTN_UP_PORT) | (1 << BTN_DOWN_PORT));
 
-  MCUCR = (1 << ISC01); // falling edge on INT0 generates interrupt
-  GIMSK = (1 << INT0);  // enable INT0 interrupt
+  MCUCR = (1 << ISC01);  // falling edge on INT0 generates interrupt
+  GIMSK = (1 << INT0);   // enable INT0 interrupt
 }
 //////////////////////////////////////////////////////////////
 
-static void btn_pressed(void) {
+static void btn_pressed(void)
+{
   if ((BTNS_PIN & (1 << BTN_ENTER_PIN)) == 0) {
     btn_enter_pressed();
     return;
@@ -202,7 +213,8 @@ static void btn_pressed(void) {
 }
 //////////////////////////////////////////////////////////////
 
-static void rtc_print(const rtc_t *r) {
+static void rtc_print(const rtc_t *r)
+{
   static char buff[3] = {0};
   for (uint8_t i = 0; i < 2; ++i) {
     str_u8_2c(r->arr[i], buff);
@@ -215,13 +227,15 @@ static void rtc_print(const rtc_t *r) {
 //////////////////////////////////////////////////////////////
 
 #define CURRENT_TIME_X_OFFSET 5
-void display_current_time(void) {
+void display_current_time(void)
+{
   nokia5110_gotoXY(CURRENT_TIME_X_OFFSET, 0);
   rtc_print(&m_valves_state.current_time);
 }
 //////////////////////////////////////////////////////////////
 
-void display_current_menu(void) {
+void display_current_menu(void)
+{
   static const char *hdr = "OPEN    CLOSE";
   display_current_time();
   nokia5110_gotoXY(4, 1);
@@ -236,7 +250,8 @@ void display_current_menu(void) {
 }
 //////////////////////////////////////////////////////////////
 
-void check_and_handle_valves_state(void) {
+void check_and_handle_valves_state(void)
+{
   rtc_t *ct = &m_valves_state.current_time;
   for (uint8_t i = 0; i < m_valves_state.valves_n; ++i) {
     valve_t *v = &m_valves_state.valves[i];
@@ -251,7 +266,8 @@ void check_and_handle_valves_state(void) {
 }
 //////////////////////////////////////////////////////////////
 
-static rtc_t *current_rtc_ptr(void) {
+static rtc_t *current_rtc_ptr(void)
+{
   settings_idx_t *si = &m_valves_state.settings_idx;
   if (si->valve_idx == DUMMY_VALVE_IDX)
     return &m_valves_state.current_time;
@@ -259,36 +275,41 @@ static rtc_t *current_rtc_ptr(void) {
 }
 /////////////////////////////////////////////////////////////
 
-void btn_enter_pressed(void) {
+void btn_enter_pressed(void)
+{
   controller_toggle_mode();
 }
 //////////////////////////////////////////////////////////////
 
-void btn_up_pressed(void) {
+void btn_up_pressed(void)
+{
   controller_handle_adjust_button(true);
 }
 //////////////////////////////////////////////////////////////
 
-void btn_down_pressed(void) {
+void btn_down_pressed(void)
+{
   controller_handle_adjust_button(false);
 }
 //////////////////////////////////////////////////////////////
 
-void controller_handle_adjust_button(bool increment) {
+void controller_handle_adjust_button(bool increment)
+{
   switch (m_valves_state.mode) {
-  case CONTROLLER_MODE_NORMAL:
-    controller_move_selection(increment);
-    break;
-  case CONTROLLER_MODE_SETTINGS:
-    controller_change_current_setting(increment);
-    break;
-  default:
-    break;
+    case CONTROLLER_MODE_NORMAL:
+      controller_move_selection(increment);
+      break;
+    case CONTROLLER_MODE_SETTINGS:
+      controller_change_current_setting(increment);
+      break;
+    default:
+      break;
   }
 }
 //////////////////////////////////////////////////////////////
 
-void display_selected_setting(bool hidden) {
+void display_selected_setting(bool hidden)
+{
   settings_idx_t *si = &m_valves_state.settings_idx;
   uint8_t x_offset = CURRENT_TIME_X_OFFSET;
   uint8_t y = 0;
@@ -306,25 +327,31 @@ void display_selected_setting(bool hidden) {
 }
 //////////////////////////////////////////////////////////////
 
-void controller_toggle_mode(void) {
+void controller_toggle_mode(void)
+{
   switch (m_valves_state.mode) {
-  case CONTROLLER_MODE_NORMAL:
-    m_valves_state.mode = CONTROLLER_MODE_SETTINGS;
-    m_valves_state.blink_state = BLINK_CONTINUOUS_HIDDEN;
-    display_selected_setting(true);
-    break;
-  case CONTROLLER_MODE_SETTINGS:
-    m_valves_state.mode = CONTROLLER_MODE_NORMAL;
-    m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
-    display_selected_setting(false);
-    break;
-  default:
-    break;
+    case CONTROLLER_MODE_NORMAL:
+      m_valves_state.mode = CONTROLLER_MODE_SETTINGS;
+      m_valves_state.blink_state = BLINK_CONTINUOUS_HIDDEN;
+      display_selected_setting(true);
+      break;
+    case CONTROLLER_MODE_SETTINGS:
+      if (m_valves_state.schedule_dirty) {
+        valves_save_schedule();
+        m_valves_state.schedule_dirty = false;
+      }
+      m_valves_state.mode = CONTROLLER_MODE_NORMAL;
+      m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
+      display_selected_setting(false);
+      break;
+    default:
+      break;
   }
 }
 //////////////////////////////////////////////////////////////
 
-void controller_move_selection(bool forward) {
+void controller_move_selection(bool forward)
+{
   display_selected_setting(false);
   if (forward) {
     settings_idx_inc(&m_valves_state.settings_idx, m_valves_state.valves_n);
@@ -336,7 +363,8 @@ void controller_move_selection(bool forward) {
 }
 //////////////////////////////////////////////////////////////
 
-void controller_change_current_setting(bool increment) {
+void controller_change_current_setting(bool increment)
+{
   rtc_t *rtc = current_rtc_ptr();
   int8_t rtc_part_idx = m_valves_state.settings_idx.rtc_part_idx;
 
@@ -346,36 +374,38 @@ void controller_change_current_setting(bool increment) {
     rtc_part_dec(rtc, rtc_part_idx);
   }
 
-  if (m_valves_state.blink_state == BLINK_CONTINUOUS_HIDDEN) {
-    display_selected_setting(true);
-    return;
+  if (m_valves_state.settings_idx.valve_idx != DUMMY_VALVE_IDX) {
+    m_valves_state.schedule_dirty = true;
   }
 
-  display_selected_setting(false);
+  display_selected_setting(m_valves_state.blink_state ==
+                           BLINK_CONTINUOUS_HIDDEN);
 }
 //////////////////////////////////////////////////////////////
 
-void controller_on_half_second_tick(void) {
+void controller_on_half_second_tick(void)
+{
   switch (m_valves_state.blink_state) {
-  case BLINK_STABLE_VISIBLE:
-    break;
-  case BLINK_SINGLE_HIDDEN:
-    m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
-    display_selected_setting(false);
-    break;
-  case BLINK_CONTINUOUS_VISIBLE:
-    m_valves_state.blink_state = BLINK_CONTINUOUS_HIDDEN;
-    display_selected_setting(true);
-    break;
-  case BLINK_CONTINUOUS_HIDDEN:
-    m_valves_state.blink_state = BLINK_CONTINUOUS_VISIBLE;
-    display_selected_setting(false);
-    break;
+    case BLINK_STABLE_VISIBLE:
+      break;
+    case BLINK_SINGLE_HIDDEN:
+      m_valves_state.blink_state = BLINK_STABLE_VISIBLE;
+      display_selected_setting(false);
+      break;
+    case BLINK_CONTINUOUS_VISIBLE:
+      m_valves_state.blink_state = BLINK_CONTINUOUS_HIDDEN;
+      display_selected_setting(true);
+      break;
+    case BLINK_CONTINUOUS_HIDDEN:
+      m_valves_state.blink_state = BLINK_CONTINUOUS_VISIBLE;
+      display_selected_setting(false);
+      break;
   }
 }
 //////////////////////////////////////////////////////////////
 
-int main(void) {
+int main(void)
+{
   valves_init(&m_valves_state.valves, &m_valves_state.valves_n);
   m_valves_state.current_time.time.hour = __CT_HOUR;
   m_valves_state.current_time.time.minute = __CT_MINUTE;

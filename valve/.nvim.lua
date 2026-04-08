@@ -2,7 +2,7 @@ local function save_and_run()
   vim.cmd([[wa]])
   vim.cmd([[belowright split]])
   vim.cmd([[resize -4]])
-  vim.cmd([[terminal cmake -S . -B ./build && cmake --build build && make -C build program]])
+  vim.cmd([[terminal cmake -S . -B ./build && cmake --build build && make -C build program_all]])
 end
 
 local function save_and_run_unit_tests()
