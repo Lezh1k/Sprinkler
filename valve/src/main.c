@@ -109,7 +109,7 @@ static void timer1_init(void) {
 //////////////////////////////////////////////////////////////
 
 // settings idx
-static void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
+void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
   uint8_t rtc_n = sidx->valve_idx == DUMMY_VALVE_IDX ? 1 : 2;
   uint8_t cf = ++sidx->rtc_part_idx == 3;
   sidx->rtc_idx += cf;
@@ -124,7 +124,7 @@ static void settings_idx_inc(settings_idx_t *sidx, int8_t valves_n) {
     sidx->valve_idx = DUMMY_VALVE_IDX;
 }
 
-static void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n) {
+void settings_idx_dec(settings_idx_t *sidx, int8_t valves_n) {
   uint8_t cf = --sidx->rtc_part_idx == -1;
   sidx->rtc_idx -= cf;
   cf = sidx->rtc_idx == -1;
@@ -145,7 +145,7 @@ ISR(TIMER0_OVF_vect) {
   // disable timer0_ovf interrupt
   TIMSK &= ~(1 << TOIE0);
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
-    // we can detect pressed btn here, but it consumes more memory
+    // we can detect pressed btn here, but it consumes more memory (~10bytes)
     SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x01;
   }
   GIMSK |= (1 << INT0); // enable INT0 interrupt
@@ -205,23 +205,23 @@ static void btn_pressed(void) {
 static void rtc_print(const rtc_t *r) {
   static char buff[3] = {0};
   for (uint8_t i = 0; i < 2; ++i) {
-    str_u8_n(r->arr[i], buff);
+    str_u8_2c(r->arr[i], buff);
     nokia5110_write_str(buff);
     nokia5110_write_char(':');
   }
-  str_u8_n(r->arr[2], buff);
+  str_u8_2c(r->arr[2], buff);
   nokia5110_write_str(buff);
 }
 //////////////////////////////////////////////////////////////
 
 #define CURRENT_TIME_X_OFFSET 5
-static void display_current_time(void) {
+void display_current_time(void) {
   nokia5110_gotoXY(CURRENT_TIME_X_OFFSET, 0);
   rtc_print(&m_valves_state.current_time);
 }
 //////////////////////////////////////////////////////////////
 
-static void display_current_menu(void) {
+void display_current_menu(void) {
   static const char *hdr = "OPEN    CLOSE";
   display_current_time();
   nokia5110_gotoXY(4, 1);
@@ -236,7 +236,7 @@ static void display_current_menu(void) {
 }
 //////////////////////////////////////////////////////////////
 
-static void check_and_handle_valves_state(void) {
+void check_and_handle_valves_state(void) {
   rtc_t *ct = &m_valves_state.current_time;
   for (uint8_t i = 0; i < m_valves_state.valves_n; ++i) {
     valve_t *v = &m_valves_state.valves[i];
@@ -259,22 +259,22 @@ static rtc_t *current_rtc_ptr(void) {
 }
 /////////////////////////////////////////////////////////////
 
-static void btn_enter_pressed(void) {
+void btn_enter_pressed(void) {
   controller_toggle_mode();
 }
 //////////////////////////////////////////////////////////////
 
-static void btn_up_pressed(void) {
+void btn_up_pressed(void) {
   controller_handle_adjust_button(true);
 }
 //////////////////////////////////////////////////////////////
 
-static void btn_down_pressed(void) {
+void btn_down_pressed(void) {
   controller_handle_adjust_button(false);
 }
 //////////////////////////////////////////////////////////////
 
-static void controller_handle_adjust_button(bool increment) {
+void controller_handle_adjust_button(bool increment) {
   switch (m_valves_state.mode) {
   case CONTROLLER_MODE_NORMAL:
     controller_move_selection(increment);
@@ -288,7 +288,7 @@ static void controller_handle_adjust_button(bool increment) {
 }
 //////////////////////////////////////////////////////////////
 
-static void display_selected_setting(bool hidden) {
+void display_selected_setting(bool hidden) {
   settings_idx_t *si = &m_valves_state.settings_idx;
   uint8_t x_offset = CURRENT_TIME_X_OFFSET;
   uint8_t y = 0;
@@ -301,12 +301,12 @@ static void display_selected_setting(bool hidden) {
   rtc_t *ct = current_rtc_ptr();
   nokia5110_gotoXY(x, y);
   static char buff[3] = {0};
-  str_u8_n(ct->arr[si->rtc_part_idx], buff);
+  str_u8_2c(ct->arr[si->rtc_part_idx], buff);
   nokia5110_write_str(hidden ? "  " : buff);
 }
 //////////////////////////////////////////////////////////////
 
-static void controller_toggle_mode(void) {
+void controller_toggle_mode(void) {
   switch (m_valves_state.mode) {
   case CONTROLLER_MODE_NORMAL:
     m_valves_state.mode = CONTROLLER_MODE_SETTINGS;
@@ -324,7 +324,7 @@ static void controller_toggle_mode(void) {
 }
 //////////////////////////////////////////////////////////////
 
-static void controller_move_selection(bool forward) {
+void controller_move_selection(bool forward) {
   display_selected_setting(false);
   if (forward) {
     settings_idx_inc(&m_valves_state.settings_idx, m_valves_state.valves_n);
@@ -336,7 +336,7 @@ static void controller_move_selection(bool forward) {
 }
 //////////////////////////////////////////////////////////////
 
-static void controller_change_current_setting(bool increment) {
+void controller_change_current_setting(bool increment) {
   rtc_t *rtc = current_rtc_ptr();
   int8_t rtc_part_idx = m_valves_state.settings_idx.rtc_part_idx;
 
@@ -355,7 +355,7 @@ static void controller_change_current_setting(bool increment) {
 }
 //////////////////////////////////////////////////////////////
 
-static void controller_on_half_second_tick(void) {
+void controller_on_half_second_tick(void) {
   switch (m_valves_state.blink_state) {
   case BLINK_STABLE_VISIBLE:
     break;
