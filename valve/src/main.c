@@ -1,7 +1,6 @@
 // see fuses
 #include <avr/interrupt.h>
 #include <avr/io.h>
-#include <avr/sleep.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,8 +35,8 @@
 #define F_CPU 24000000
 
 static volatile struct {
-  bool SIR_timer1_tick;
-  bool SIR_btn_pressed;
+  uint8_t SIR_timer1_tick;
+  uint8_t SIR_btn_pressed;
 } SOFT_INTERRUPTS_REG = {0};
 
 // buttons
@@ -98,7 +97,7 @@ static void controller_handle_adjust_button(bool increment);
 //////////////////////////////////////////////////////////////
 
 // timer 1
-ISR(TIMER1_COMPA_vect) { SOFT_INTERRUPTS_REG.SIR_timer1_tick = true; }
+ISR(TIMER1_COMPA_vect) { SOFT_INTERRUPTS_REG.SIR_timer1_tick = 0x01; }
 
 static void timer1_init(void) {
   TCCR1B |= (1 << CS12) |      // 256 prescaler
@@ -146,7 +145,8 @@ ISR(TIMER0_OVF_vect) {
   // disable timer0_ovf interrupt
   TIMSK &= ~(1 << TOIE0);
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
-    SOFT_INTERRUPTS_REG.SIR_btn_pressed = true;
+    // we can detect pressed btn here, but it consumes more memory
+    SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x01;
   }
   GIMSK |= (1 << INT0); // enable INT0 interrupt
 }
@@ -204,14 +204,13 @@ static void btn_pressed(void) {
 
 static void rtc_print(const rtc_t *r) {
   static char buff[3] = {0};
-  char *s;
   for (uint8_t i = 0; i < 2; ++i) {
-    s = str_u8_n(r->arr[i], buff, 3);
-    nokia5110_write_str(s);
+    str_u8_n(r->arr[i], buff);
+    nokia5110_write_str(buff);
     nokia5110_write_char(':');
   }
-  s = str_u8_n(r->arr[2], buff, 3);
-  nokia5110_write_str(s);
+  str_u8_n(r->arr[2], buff);
+  nokia5110_write_str(buff);
 }
 //////////////////////////////////////////////////////////////
 
@@ -258,7 +257,7 @@ static rtc_t *current_rtc_ptr(void) {
     return &m_valves_state.current_time;
   return &m_valves_state.valves[si->valve_idx].schedule.arr[si->rtc_idx];
 }
-//////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////
 
 static void btn_enter_pressed(void) {
   controller_toggle_mode();
@@ -290,7 +289,6 @@ static void controller_handle_adjust_button(bool increment) {
 //////////////////////////////////////////////////////////////
 
 static void display_selected_setting(bool hidden) {
-  static char buff[3] = {0};
   settings_idx_t *si = &m_valves_state.settings_idx;
   uint8_t x_offset = CURRENT_TIME_X_OFFSET;
   uint8_t y = 0;
@@ -302,8 +300,9 @@ static void display_selected_setting(bool hidden) {
 
   rtc_t *ct = current_rtc_ptr();
   nokia5110_gotoXY(x, y);
-  char *s = hidden ? "  " : str_u8_n(ct->arr[si->rtc_part_idx], buff, 3);
-  nokia5110_write_str(s);
+  static char buff[3] = {0};
+  str_u8_n(ct->arr[si->rtc_part_idx], buff);
+  nokia5110_write_str(hidden ? "  " : buff);
 }
 //////////////////////////////////////////////////////////////
 
@@ -397,7 +396,7 @@ int main(void) {
   bool second_passed = false;
   while (2 + 2 != 5) {
     if (SOFT_INTERRUPTS_REG.SIR_timer1_tick) {
-      SOFT_INTERRUPTS_REG.SIR_timer1_tick = false;
+      SOFT_INTERRUPTS_REG.SIR_timer1_tick = 0x00;
       if ((second_passed = !second_passed)) {
         rtc_inc(&m_valves_state.current_time);
         display_current_time();
@@ -407,7 +406,7 @@ int main(void) {
     }
 
     if (SOFT_INTERRUPTS_REG.SIR_btn_pressed) {
-      SOFT_INTERRUPTS_REG.SIR_btn_pressed = false;
+      SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x00;
       btn_pressed();
     }
   }

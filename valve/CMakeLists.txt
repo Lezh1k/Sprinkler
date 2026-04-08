@@ -44,6 +44,7 @@ set(COMPILE_OPTIONS
   -ffunction-sections
   -fdata-sections
   -fstack-usage
+  -flto
 )
 
 set(COMPILE_DEFINITIONS
@@ -57,6 +58,7 @@ set(LINK_OPTIONS
   -mmcu=${MCU}
   -Wl,--gc-sections
   -Wl,--print-memory-usage
+  -flto
 )
 
 add_executable(${PROJECT_NAME} ${sources} ${data})

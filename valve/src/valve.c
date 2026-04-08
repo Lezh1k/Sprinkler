@@ -6,9 +6,10 @@
 
 #define VALVES_DDR  DDRB
 #define VALVES_PORT PORTB
+#define VALVES_N    3
 
 // clang-format off
-static valve_t valves[] = {
+static valve_t valves[VALVES_N] = {
   {
     .schedule =
     {
@@ -49,10 +50,10 @@ static valve_t valves[] = {
 void valves_init(valve_t **lst_valves, uint8_t *valves_n)
 {
   VALVES_DDR |= (1 << DDB0) | (1 << DDB1) | (1 << DDB2);
-  for (uint8_t i = 0; i < (sizeof(valves) / sizeof(valves[0])); ++i)
+  for (uint8_t i = 0; i < VALVES_N; ++i)
     valve_close(&valves[i]);
   *lst_valves = valves;
-  *valves_n = sizeof(valves) / sizeof(valves[0]);
+  *valves_n = VALVES_N;
 }
 //////////////////////////////////////////////////////////////
 

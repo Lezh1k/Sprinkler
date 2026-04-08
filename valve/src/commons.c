@@ -1,18 +1,16 @@
 #include "commons.h"
+
 #include <stdint.h>
 
-char *str_u8_n(uint8_t val, char *buff, uint8_t n) {
-  char *ptr = buff + n;
-  *(--ptr) = '\0';
-
-  while (val && ptr > buff) {
-    *(--ptr) = '0' + (val % 10);
-    val /= 10;
+void str_u8_n(uint8_t val, char buff[3])
+{
+  uint8_t d0 = 0;
+  buff[2] = '\0';
+  while (val >= 10) {
+    ++d0;
+    val -= 10;
   }
-
-  while (ptr > buff)
-    *(--ptr) = '0';
-
-  return ptr;
+  buff[1] = '0' + val;
+  buff[0] = '0' + d0;
 }
 //////////////////////////////////////////////////////////////

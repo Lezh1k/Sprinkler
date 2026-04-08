@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#define FILL_CHAR_EMPTY -1
-
-char *str_u8_n(uint8_t val, char *buff, uint8_t n);
+void str_u8_n(uint8_t val, char buff[3]);
 
 #endif
