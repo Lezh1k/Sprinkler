@@ -30,9 +30,9 @@
 #define BTN_DOWN_PIN   PIND5
 #define BTN_DOWN_PORT  PORTD5
 
-// #define F_CPU 16000000
+#define F_CPU 16000000
 // #define F_CPU 8000000
-#define F_CPU 24000000
+// #define F_CPU 24000000
 
 static volatile struct {
   uint8_t SIR_timer1_tick;
@@ -41,7 +41,7 @@ static volatile struct {
 
 // buttons
 static void btns_init(void);
-static void btn_pressed(void);
+static void btn_pressed(uint8_t btns_pin);
 static void btn_enter_pressed(void);
 static void btn_up_pressed(void);
 static void btn_down_pressed(void);
@@ -153,8 +153,7 @@ ISR(TIMER0_OVF_vect)
   // disable timer0_ovf interrupt
   TIMSK &= ~(1 << TOIE0);
   if ((BTNS_PIN & (1 << BTNS_INT_PIN)) == 0) {
-    // we can detect pressed btn here, but it consumes more memory (~10bytes)
-    SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x01;
+    SOFT_INTERRUPTS_REG.SIR_btn_pressed = BTNS_PIN;
   }
   GIMSK |= (1 << INT0);  // enable INT0 interrupt
 }
@@ -194,19 +193,19 @@ static void btns_init(void)
 }
 //////////////////////////////////////////////////////////////
 
-static void btn_pressed(void)
+static void btn_pressed(uint8_t btns_pin)
 {
-  if ((BTNS_PIN & (1 << BTN_ENTER_PIN)) == 0) {
+  if ((btns_pin & (1 << BTN_ENTER_PIN)) == 0) {
     btn_enter_pressed();
     return;
   }
 
-  if ((BTNS_PIN & (1 << BTN_UP_PIN)) == 0) {
+  if ((btns_pin & (1 << BTN_UP_PIN)) == 0) {
     btn_up_pressed();
     return;
   }
 
-  if ((BTNS_PIN & (1 << BTN_DOWN_PIN)) == 0) {
+  if ((btns_pin & (1 << BTN_DOWN_PIN)) == 0) {
     btn_down_pressed();
     return;
   }
@@ -436,8 +435,8 @@ int main(void)
     }
 
     if (SOFT_INTERRUPTS_REG.SIR_btn_pressed) {
+      btn_pressed(SOFT_INTERRUPTS_REG.SIR_btn_pressed);
       SOFT_INTERRUPTS_REG.SIR_btn_pressed = 0x00;
-      btn_pressed();
     }
   }
   return 0;

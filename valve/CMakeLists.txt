@@ -80,4 +80,4 @@ add_custom_target(eeprom      ${AVR_OBJCOPY} -j .eeprom --change-section-lma .ee
 add_custom_target(program      ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U flash:w:${PROJECT_NAME}.hex DEPENDS hex)
 add_custom_target(program_eeprom ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U eeprom:w:${PROJECT_NAME}.eeprom DEPENDS eeprom)
 add_custom_target(program_all  ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U flash:w:${PROJECT_NAME}.hex -U eeprom:w:${PROJECT_NAME}.eeprom DEPENDS hex eeprom)
-add_custom_target(program_fuse ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U lfuse:w:0xcf:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m)
+add_custom_target(program_fuse ${AVRDUDE} -c usbasp -p ${AVRDUDE_MCU} -U lfuse:w:0xcf:m -U hfuse:w:0xdf:m -U efuse:w:0xfc:m)
